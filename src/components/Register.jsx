@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router';
 
 const Register = () => {
     // State untuk menampung nilai input form
@@ -14,6 +15,27 @@ const Register = () => {
     // State untuk mengontrol visibilitas password
     const [showPassword, setShowPassword] = useState(false);
 
+    // State untuk menyimpan data user yang terdaftar (sinkron dengan localStorage)
+    const [registeredUsers, setRegisteredUsers] = useState([]);
+
+    // Load data dari localStorage saat komponen pertama kali dimuat
+    useEffect(() => {
+        const loadUsersFromStorage = () => {
+            try {
+                const storedUsers = localStorage.getItem('registeredUsers');
+                if (storedUsers) {
+                    const parsedUsers = JSON.parse(storedUsers);
+                    setRegisteredUsers(parsedUsers);
+                    console.log('Data users dimuat dari localStorage:', parsedUsers);
+                }
+            } catch (error) {
+                console.error('Error loading users from localStorage:', error);
+            }
+        };
+
+        loadUsersFromStorage();
+    }, []);
+
     // Mengelola perubahan input
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
@@ -21,6 +43,14 @@ const Register = () => {
             ...formData,
             [name]: type === 'checkbox' ? checked : value,
         });
+
+        // Clear error saat user mulai mengetik
+        if (errors[name]) {
+            setErrors({
+                ...errors,
+                [name]: ''
+            });
+        }
     };
 
     // Fungsi untuk mengubah visibilitas password
@@ -34,14 +64,16 @@ const Register = () => {
         const { email, password, terms } = formData;
 
         // Validasi Email
-        if (!email) {
+        if (!email.trim()) {
             newErrors.email = "Email tidak boleh kosong.";
         } else if (!/\S+@\S+\.\S+/.test(email)) {
             newErrors.email = "Format email tidak valid.";
+        } else if (registeredUsers.some(user => user.email.toLowerCase() === email.toLowerCase())) {
+            newErrors.email = "Email sudah terdaftar. Gunakan email lain.";
         }
 
         // Validasi Password
-        if (!password) {
+        if (!password.trim()) {
             newErrors.password = "Password tidak boleh kosong.";
         } else if (password.length < 8) {
             newErrors.password = "Password harus mengandung minimal 8 karakter.";
@@ -51,6 +83,8 @@ const Register = () => {
             newErrors.password = "Password harus mengandung minimal 1 huruf besar.";
         } else if (!/[!@#$%^&*/><]/.test(password)) {
             newErrors.password = "Password harus mengandung minimal 1 karakter spesial (!@#$%^&*/><).";
+        } else if (!/[\d]/.test(password)) {
+            newErrors.password = "Password harus mengandung minimal 1 angka.";
         }
 
         // Validasi Syarat & Ketentuan
@@ -62,30 +96,83 @@ const Register = () => {
         return Object.keys(newErrors).length === 0;
     };
 
+    // Fungsi untuk menyimpan data ke localStorage
+    const saveToStorage = (userData) => {
+        try {
+            // Ambil data existing dari localStorage
+            const existingUsersJSON = localStorage.getItem('registeredUsers');
+            let existingUsers = [];
+            
+            if (existingUsersJSON) {
+                existingUsers = JSON.parse(existingUsersJSON);
+            }
+            
+            // Tambahkan user baru ke array
+            const updatedUsers = [...existingUsers, userData];
+            
+            // Simpan kembali ke localStorage
+            localStorage.setItem('registeredUsers', JSON.stringify(updatedUsers));
+            
+            // Update state React untuk sinkronisasi
+            setRegisteredUsers(updatedUsers);
+            
+            console.log('Data berhasil disimpan ke localStorage:', userData);
+            console.log('Semua user terdaftar:', updatedUsers);
+            console.log('Data di localStorage:', localStorage.getItem('registeredUsers'));
+            
+            return true;
+        } catch (error) {
+            console.error('Error saving to localStorage:', error);
+            return false;
+        }
+    };
+
     // Menangani submit form
     const handleRegister = (event) => {
         event.preventDefault();
 
+        // Reset errors sebelum validasi
+        setErrors({});
+
         if (validateForm()) {
-            console.log("Data form valid:", formData);
-            alert("Registrasi berhasil!");
+            // Persiapkan data untuk disimpan
+            const userData = {
+                id: Date.now(), // Generate simple ID
+                email: formData.email.trim(),
+                password: formData.password, // Di aplikasi nyata, password harus di-hash
+                registeredAt: new Date().toISOString(),
+                isActive: true // Set sebagai active untuk kemudahan testing
+            };
+
+            // Simpan ke localStorage
+            const saveSuccess = saveToStorage(userData);
             
-            // Reset form setelah registrasi berhasil
-            setFormData({
-                email: '',
-                password: '',
-                terms: false,
-            });
+            if (saveSuccess) {
+                console.log("Registrasi berhasil untuk:", userData.email);
+                alert("Registrasi berhasil! Data telah disimpan ke localStorage.");
+                
+                // Reset form setelah registrasi berhasil
+                setFormData({
+                    email: '',
+                    password: '',
+                    terms: false,
+                });
+                
+                // Reset errors
+                setErrors({});
+            } else {
+                alert("Terjadi kesalahan saat menyimpan data. Silakan coba lagi.");
+            }
         } else {
             console.log("Validasi gagal. Mohon periksa kembali formulir Anda.");
         }
     };
 
     return (
-        <div className="min-h-screen bg-[url(sign-up.svg)]">
+        <div className="min-h-screen bg-[url(/sign-up.svg)] bg-cover bg-center overflow-y-hidden">
             {/* Logo */}
             <div className="flex justify-center pt-12 pb-4">
-                <img src="tickitz 1.svg" alt="" />
+                <img src="/tickitz 1.svg" alt="" />
             </div>
 
             {/* Main Container */}
@@ -124,7 +211,7 @@ const Register = () => {
                     </div>
 
                     {/* Registration Form */}
-                    <div>
+                    <form onSubmit={handleRegister}>
                         {/* Email Field */}
                         <div className="mb-5">
                             <label htmlFor="email" className="block mb-2 text-gray-700 font-medium">
@@ -137,7 +224,9 @@ const Register = () => {
                                 placeholder="Enter your email"
                                 value={formData.email}
                                 onChange={handleChange}
-                                className="w-full px-4 py-3 border border-gray-300 rounded-md text-sm transition-colors focus:outline-none focus:border-blue-500"
+                                className={`w-full px-4 py-3 border rounded-md text-sm transition-colors focus:outline-none focus:border-blue-500 ${
+                                    errors.email ? 'border-red-300' : 'border-gray-300'
+                                }`}
                             />
                             {errors.email && (
                                 <p className="text-red-500 text-sm mt-1">{errors.email}</p>
@@ -149,7 +238,9 @@ const Register = () => {
                             <label htmlFor="password" className="block mb-2 text-gray-700 font-medium">
                                 Password
                             </label>
-                            <div className="flex items-center border border-gray-300 rounded-md pr-2">
+                            <div className={`flex items-center border rounded-md pr-2 ${
+                                errors.password ? 'border-red-300' : 'border-gray-300'
+                            }`}>
                                 <input
                                     type={showPassword ? "text" : "password"}
                                     id="password"
@@ -202,16 +293,19 @@ const Register = () => {
 
                         {/* Submit Button */}
                         <button 
-                            onClick={handleRegister} 
+                            type="submit"
                             className="w-full py-3 bg-blue-600 text-white border-none rounded-md text-base font-semibold cursor-pointer transition-colors hover:bg-blue-700"
                         >
                             Join For Free Now
                         </button>
-                    </div>
+                        
+                        {/* Debug Info - Hapus di production */}
+                        
+                    </form>
 
                     {/* Login Link */}
                     <div className="text-center my-5 text-gray-600 text-sm">
-                        Already have an account? <a href="#" className="text-blue-500 no-underline font-medium">Log in</a>
+                        Already have an account? <Link to="/Login" className="text-blue-500 no-underline font-medium">Log in</Link>
                     </div>
 
                     {/* Social Login */}
