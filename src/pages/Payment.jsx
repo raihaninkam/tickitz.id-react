@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { X, Copy, Check } from "lucide-react";
 import MyNavbar from "../components/Navbar";
 import MyFooter from "../components/Footer";
+import { useNavigate } from "react-router";
 
 const PaymentPage = () => {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
@@ -13,51 +14,95 @@ const PaymentPage = () => {
   });
   const [formErrors, setFormErrors] = useState({});
   const [copied, setCopied] = useState(false);
+  const [orderData, setOrderData] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  
+  const navigate = useNavigate();
+
+  // Load order data from sessionStorage
+  useEffect(() => {
+    const savedOrderData = sessionStorage.getItem("orderData");
+    if (savedOrderData) {
+      try {
+        const parsedData = JSON.parse(savedOrderData);
+        setOrderData(parsedData);
+        setLoading(false);
+      } catch (error) {
+        console.error("Error parsing order data:", error);
+        // Redirect back to order page if no valid order data
+        navigate("/order");
+      }
+    } else {
+      // Redirect back to order page if no order data
+      navigate("/order");
+    }
+  }, [navigate]);
+
   const paymentMethods = [
-    { 
-      id: "google-pay", 
-      img: "logos_google-pay.svg"
+    {
+      id: "google-pay",
+      img: "/logos_google-pay.svg",
+      name: "Google Pay",
     },
-    { 
-      id: "visa", 
-      img: "logos_visa.svg"
+    {
+      id: "visa",
+      img: "/logos_visa.svg",
+      name: "Visa",
     },
-    { 
-      id: "gopay", 
-      img: "Logo GoPay (SVG-240p) - FileVector69 1.svg"
+    {
+      id: "gopay",
+      img: "/Logo GoPay (SVG-240p) - FileVector69 1.svg",
+      name: "GoPay",
     },
-    { 
-      id: "paypal", 
-      img: "logos_paypal.png"
+    {
+      id: "paypal",
+      img: "/logos_paypal.png",
+      name: "PayPal",
     },
-    { 
-      id: "dana",  
-      img: "Logo DANA (PNG-240p) - FileVector69 1.svg"
+    {
+      id: "dana",
+      img: "/Logo DANA (PNG-240p) - FileVector69 1.svg",
+      name: "DANA",
     },
-    { 
-      id: "bca", 
-      img: "Bank BCA Logo (SVG-240p) - FileVector69 1.svg"
+    {
+      id: "bca",
+      img: "/Bank BCA Logo (SVG-240p) - FileVector69 1.svg",
+      name: "BCA",
     },
-    { 
-      id: "bri", 
-      img: "Bank BRI (Bank Rakyat Indonesia) Logo (SVG-240p) - FileVector69 1.svg"
+    {
+      id: "bri",
+      img: "/Bank BRI (Bank Rakyat Indonesia) Logo (SVG-240p) - FileVector69 1.svg",
+      name: "BRI",
     },
-    { 
-      id: "ovo", 
-      img: "ovo.svg"
+    {
+      id: "ovo",
+      img: "/ovo.svg",
+      name: "OVO",
     },
-    
   ];
 
-  const bookingDetails = {
+  // Fallback booking details jika tidak ada order data
+  const fallbackBookingDetails = {
     dateTime: "Tuesday, 07 July 2020 at 02:00pm",
     movieTitle: "Spider-Man: Homecoming",
     cinemaName: "CineOne21 Cinema",
     tickets: "3 pieces",
     totalPayment: "$30.00",
   };
+
+  // Use order data or fallback
+  const bookingDetails = orderData
+    ? {
+        dateTime: `${orderData.selectedDate} at ${orderData.selectedTime}`,
+        movieTitle: orderData.movieTitle,
+        cinemaName: orderData.selectedCinema?.name || "Unknown Cinema",
+        location: orderData.selectedLocation,
+        tickets: `${orderData.totalSeats} pieces`,
+        selectedSeats: orderData.selectedSeats?.join(", ") || "None",
+        totalPayment: `$${orderData.totalPrice || 0}.00`,
+        ticketPrice: orderData.ticketPrice || 10,
+      }
+    : fallbackBookingDetails;
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -139,14 +184,26 @@ const PaymentPage = () => {
     };
   }, [showModal]);
 
+  // Show loading while fetching order data
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-100 font-sans">
+        <MyNavbar />
+        <div className="flex items-center justify-center h-96">
+          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-100 font-sans">
-      <MyNavbar/>
+      <MyNavbar />
 
       {/* Progress Bar */}
       <div className="flex justify-center py-8">
         <div className="flex items-center space-x-4">
-          <img src="progress2.svg" alt="" />
+          <img src="/progress2.svg" alt="" />
         </div>
       </div>
 
@@ -181,6 +238,26 @@ const PaymentPage = () => {
               </p>
               <p className="text-sm pb-4 border-b border-gray-300">
                 {bookingDetails.cinemaName}
+              </p>
+            </div>
+
+            {bookingDetails.location && (
+              <div>
+                <p className="text-sm text-gray-500 uppercase tracking-wide mb-1">
+                  Location
+                </p>
+                <p className="text-sm pb-4 border-b border-gray-300">
+                  {bookingDetails.location}
+                </p>
+              </div>
+            )}
+
+            <div>
+              <p className="text-sm text-gray-500 uppercase tracking-wide mb-1">
+                Selected Seats
+              </p>
+              <p className="text-sm pb-4 border-b border-gray-300">
+                {bookingDetails.selectedSeats}
               </p>
             </div>
 
@@ -282,17 +359,17 @@ const PaymentPage = () => {
                       className="max-w-full max-h-full object-contain"
                       onError={(e) => {
                         // Fallback jika gambar gagal dimuat
-                        e.target.style.display = 'none';
-                        e.target.nextSibling.style.display = 'block';
+                        e.target.style.display = "none";
+                        e.target.nextSibling.style.display = "block";
                       }}
                     />
-                    <div 
-                      className="w-16 h-10 bg-gray-200 rounded items-center justify-center text-xs text-gray-500 hidden"
-                    >
+                    <div className="w-16 h-10 bg-gray-200 rounded items-center justify-center text-xs text-gray-500 hidden">
                       {method.name}
                     </div>
                   </div>
-                  <span className="text-xs text-gray-600 text-center">{method.name}</span>
+                  <span className="text-xs text-gray-600 text-center">
+                    {method.name}
+                  </span>
                 </button>
               ))}
             </div>
@@ -311,11 +388,11 @@ const PaymentPage = () => {
       </main>
 
       {/* Footer Placeholder */}
-      <MyFooter/>
+      <MyFooter />
 
       {/* Payment Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-white bg-opacity-40 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-4 relative shadow-lg">
             <button
               onClick={closeModal}
@@ -356,7 +433,9 @@ const PaymentPage = () => {
 
               <div className="flex justify-between items-center mb-6">
                 <span className="text-gray-500">Total Payment</span>
-                <span className="font-bold text-xl text-blue-600">$30</span>
+                <span className="font-bold text-xl text-blue-600">
+                  {bookingDetails.totalPayment}
+                </span>
               </div>
 
               <div className="text-sm text-gray-500 mb-6 p-4 rounded-lg">
@@ -372,6 +451,42 @@ const PaymentPage = () => {
                 <button
                   onClick={() => {
                     console.log("Check Payment clicked");
+
+                    // Prepare complete ticket data
+                    const ticketData = {
+                      ...orderData,
+                      personalInfo: formData,
+                      paymentMethod: selectedPaymentMethod,
+                      paymentStatus: "completed",
+                      paymentDate: new Date().toISOString(),
+                      // Add formatted data for ticket display
+                      ticketInfo: {
+                        movieTitle:
+                          orderData?.movieTitle || "Spider-Man: No Way Home",
+                        category: "PG-13",
+                        date: orderData?.selectedDate || "07 Jul 2024",
+                        time: orderData?.selectedTime || "2:00 PM",
+                        count: orderData?.totalSeats || 3,
+                        seats:
+                          orderData?.selectedSeats?.join(", ") || "C4, C5, C6",
+                        total: orderData?.totalPrice
+                          ? `$${orderData.totalPrice}.00`
+                          : "$30.00",
+                        cinema:
+                          orderData?.selectedCinema?.name || "CineOne21 Cinema",
+                        location: orderData?.selectedLocation || "Jakarta",
+                      },
+                    };
+
+                    // Save to sessionStorage
+                    sessionStorage.setItem(
+                      "ticketData",
+                      JSON.stringify(ticketData)
+                    );
+
+                    // Navigate to ticket result page
+                    navigate("/home/ticket");
+
                     closeModal();
                   }}
                   className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
