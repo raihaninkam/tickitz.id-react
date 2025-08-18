@@ -31,7 +31,6 @@ const MyNavbar = () => {
       setIsLoggedIn(false);
       setCurrentUser(null);
       setShowUserMenu(false);
-      alert('Logout berhasil!');
       navigate('/Login');
     } catch (error) {
       console.error('Error during logout:', error);
@@ -72,6 +71,7 @@ const MyNavbar = () => {
            <img src="/tickitz 1.svg" alt="" />
           </Link>
         </div>
+
 
         {/* Desktop Navigation Menu */}
         <div className="hidden md:flex space-x-8">
@@ -166,7 +166,7 @@ const MyNavbar = () => {
                   </Link>
                   
                   <Link
-                    to="/my-tickets"
+                    to="/order-history"
                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                     onClick={() => setShowUserMenu(false)}
                   >
@@ -289,7 +289,7 @@ const MyNavbar = () => {
                   </Link>
                   
                   <Link
-                    to="/my-tickets"
+                    to="/order-history"
                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                     onClick={() => setShowMobileMenu(false)}
                   >
@@ -297,7 +297,7 @@ const MyNavbar = () => {
                   </Link>
                   
                   <Link
-                    to="/purchase-history"
+                    to="/order-history"
                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                     onClick={() => setShowMobileMenu(false)}
                   >

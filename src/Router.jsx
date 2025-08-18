@@ -9,8 +9,10 @@ import { BrowserRouter, Routes, Route} from "react-router";
 import TicketResult from "./pages/Ticket.jsx";
 import ProfilePage from "./pages/Profile.jsx";
 import OrderHistory from "./pages/OrderHistory.jsx";
-// import TickitzDashboard from "./pages/Chart.jsx";
-import TickitzMovieCRUD from "./pages/Crud.jsx";
+import TickitzMovieCRUD from "./pages/MovieList.jsx";
+import MovieSalesDashboard from "./components/Chart.jsx";
+import ForgotPassword from "./components/ForgotPassword.jsx";
+import MovieForm from "./pages/MovieForm.jsx";
 
 
 function App() {
@@ -21,10 +23,12 @@ function App() {
           {/* Auth routes */}
           <Route path="/register" element={<Register />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/home" element={<Home />} />
+          <Route path="/forgotPassword" element={<ForgotPassword />} />
+
           
           {/* Main app routes */}
           <Route path="/" element={<Home />} />
-          <Route path="/home" element={<Home />} />
           <Route path="/home/movies" element={<MovieApp />} />
           <Route path="/home/movies/:id" element={<MovieDetailPage />} />
           <Route path="/home/payment" element={<PaymentPage />} />
@@ -35,8 +39,9 @@ function App() {
           <Route path="/" element={<ProfilePage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/order-history" element={<OrderHistory />} />
-          {/* <Route path="/dashboard" element={<TickitzDashboard />} /> */}
-          <Route path="/crud" element={<TickitzMovieCRUD />} />
+          <Route path="/movieList" element={<TickitzMovieCRUD />} />
+          <Route path="/chart" element={<MovieSalesDashboard />} />
+          <Route path="/movieForm" element={<MovieForm />} />
         </Routes>
       </BrowserRouter>
     </>

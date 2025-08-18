@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import MyNavbar from '../components/Navbar';
 import MyFooter from '../components/Footer';
+import { useDispatch } from "react-redux";
+import { setCurrentOrder } from "../redux/slices/orderSlice";
+import { toast } from 'react-toastify';
 
 const MovieDetailPage = ({ onBookingDataChange }) => {
   const [movieData, setMovieData] = useState(null);
@@ -18,11 +21,31 @@ const MovieDetailPage = ({ onBookingDataChange }) => {
     movieId: null,
     movieTitle: '',
     moviePoster: '',
-    ticketQuantity: 1
   });
 
   const { id } = useParams();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+  
+  // Ambil status login dari localStorage
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  // Check login status dari localStorage
+  useEffect(() => {
+    const userData = localStorage.getItem('currentUser');
+    if (userData) {
+      try {
+        JSON.parse(userData); // Cek apakah data valid JSON
+        setIsLoggedIn(true);
+      } catch (error) {
+        console.error('Error parsing user data:', error);
+        localStorage.removeItem('currentUser'); // Hapus data yang corrupt
+        setIsLoggedIn(false);
+      }
+    } else {
+      setIsLoggedIn(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (id) {
@@ -93,46 +116,101 @@ const MovieDetailPage = ({ onBookingDataChange }) => {
     }
   };
 
-  // Handler untuk update booking data
+  // Fungsi untuk cek login dan tampilkan toast
+  const checkLoginStatus = () => {
+    if (!isLoggedIn) {
+      toast.error('Please login first to book tickets!', {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+      return false;
+    }
+    return true;
+  };
+
+  // Handler untuk update booking data dengan pengecekan login
   const handleInputChange = (field, value) => {
+    if (!checkLoginStatus()) {
+      return;
+    }
+
     setBookingData(prev => ({
       ...prev,
       [field]: value
     }));
   };
 
-  // Handler untuk memilih cinema
-  const handleCinemaSelect = (cinema) => {
-    setBookingData(prev => ({
-      ...prev,
-      selectedCinema: cinema
-    }));
+  // Handler untuk memilih cinema dengan pengecekan login
+ const handleCinemaSelect = (cinema) => {
+  if (!checkLoginStatus()) {
+    return;
+  }
+
+  // Pastikan cinema object lengkap dengan logo
+  const completeeCinemaData = {
+    id: cinema.id,
+    name: cinema.name,
+    logo: cinema.logo // PENTING: Sertakan logo
+  };
+
+  setBookingData(prev => ({
+    ...prev,
+    selectedCinema: completeeCinemaData
+  }));
+};
+
+  // Handler untuk filter button
+  const handleFilter = () => {
+    if (!checkLoginStatus()) {
+      return;
+    }
+    // Logika filter di sini jika diperlukan
+    console.log('Filter applied');
   };
 
   // Handler untuk proses booking - submit data dan navigate ke order page
   const handleBookNow = () => {
+    if (!checkLoginStatus()) {
+      return;
+    }
+
     // Validasi data booking
     if (!bookingData.selectedDate) {
-      alert('Please select a date!');
+      toast.warn('Please select a date!', {
+        position: "top-right",
+        autoClose: 3000,
+      });
       return;
     }
     if (!bookingData.selectedTime) {
-      alert('Please select a time!');
+      toast.warn('Please select a time!', {
+        position: "top-right",
+        autoClose: 3000,
+      });
       return;
     }
     if (!bookingData.selectedLocation) {
-      alert('Please select a location!');
+      toast.warn('Please select a location!', {
+        position: "top-right",
+        autoClose: 3000,
+      });
       return;
     }
     if (!bookingData.selectedCinema) {
-      alert('Please select a cinema!');
+      toast.warn('Please select a cinema!', {
+        position: "top-right",
+        autoClose: 3000,
+      });
       return;
     }
 
     // Siapkan data lengkap untuk order page
     const completeBookingData = {
       ...bookingData,
-      // Tambahan data untuk order page
       genres: movieData?.genres || [],
       overview: movieData?.overview || '',
       runtime: movieData?.runtime || 0,
@@ -141,6 +219,10 @@ const MovieDetailPage = ({ onBookingDataChange }) => {
       cast: cast,
       backdrop_path: movieData?.backdrop_path || ''
     };
+
+    dispatch(setCurrentOrder(completeBookingData));
+
+    navigate('/home/order');
 
     // Pass data ke parent component jika ada callback
     if (onBookingDataChange && typeof onBookingDataChange === 'function') {
@@ -152,8 +234,10 @@ const MovieDetailPage = ({ onBookingDataChange }) => {
     
     console.log('Complete Booking Data:', completeBookingData);
     
-    // Navigate ke order page
-    navigate('/home/order');
+    toast.success('Booking successful! Redirecting to order page...', {
+      position: "top-right",
+      autoClose: 2000,
+    });
   };
 
   const cinemas = [
@@ -212,7 +296,7 @@ const MovieDetailPage = ({ onBookingDataChange }) => {
               <img 
                 src={`https://image.tmdb.org/t/p/w500${movieData.poster_path}`}
                 alt={movieData.title}
-                className="w-64 rounded-lg shadow-lg -mt-1  mx-auto"
+                className="w-80 rounded-lg shadow-lg -mt-20  mx-auto"
               />
             )}
 
@@ -272,7 +356,14 @@ const MovieDetailPage = ({ onBookingDataChange }) => {
         </section>
 
         <section className="px-4 md:px-32 mb-16">
-          <h2 className="text-2xl font-bold mb-6">Book Tickets</h2>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold">Book Tickets</h2>
+            {!isLoggedIn && (
+              <div className="text-sm text-red-500 bg-red-50 px-3 py-1 rounded-lg">
+                ⚠️ Please login to book tickets
+              </div>
+            )}
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
             <div>
@@ -280,7 +371,10 @@ const MovieDetailPage = ({ onBookingDataChange }) => {
               <select 
                 value={bookingData.selectedDate} 
                 onChange={(e) => handleInputChange('selectedDate', e.target.value)} 
-                className="w-full p-3 bg-gray-100 rounded-lg border-0 text-gray-700"
+                className={`w-full p-3 rounded-lg border-0 text-gray-700 ${
+                  !isLoggedIn ? 'bg-gray-200 cursor-not-allowed' : 'bg-gray-100 cursor-pointer'
+                }`}
+                disabled={!isLoggedIn}
               >
                 <option value="">Choose Date</option>
                 <option value="21/07/20">21/07/20</option>
@@ -295,7 +389,10 @@ const MovieDetailPage = ({ onBookingDataChange }) => {
               <select 
                 value={bookingData.selectedTime} 
                 onChange={(e) => handleInputChange('selectedTime', e.target.value)} 
-                className="w-full p-3 bg-gray-100 rounded-lg border-0 text-gray-700"
+                className={`w-full p-3 rounded-lg border-0 text-gray-700 ${
+                  !isLoggedIn ? 'bg-gray-200 cursor-not-allowed' : 'bg-gray-100 cursor-pointer'
+                }`}
+                disabled={!isLoggedIn}
               >
                 <option value="">Choose Time</option>
                 <option value="08:30 AM">08:30 AM</option>
@@ -310,7 +407,10 @@ const MovieDetailPage = ({ onBookingDataChange }) => {
               <select 
                 value={bookingData.selectedLocation} 
                 onChange={(e) => handleInputChange('selectedLocation', e.target.value)} 
-                className="w-full p-3 bg-gray-100 rounded-lg border-0 text-gray-700"
+                className={`w-full p-3 rounded-lg border-0 text-gray-700 ${
+                  !isLoggedIn ? 'bg-gray-200 cursor-not-allowed' : 'bg-gray-100 cursor-pointer'
+                }`}
+                disabled={!isLoggedIn}
               >
                 <option value="">Choose Location</option>
                 <option value="Purwokerto">Purwokerto</option>
@@ -320,22 +420,16 @@ const MovieDetailPage = ({ onBookingDataChange }) => {
                 <option value="Yogyakarta">Yogyakarta</option>
               </select>
             </div>
-            <div>
-              <h4 className="font-bold mb-2">Ticket Quantity</h4>
-              <select 
-                value={bookingData.ticketQuantity} 
-                onChange={(e) => handleInputChange('ticketQuantity', parseInt(e.target.value))} 
-                className="w-full p-3 bg-gray-100 rounded-lg border-0 text-gray-700"
-              >
-                <option value={1}>1 Ticket</option>
-                <option value={2}>2 Tickets</option>
-                <option value={3}>3 Tickets</option>
-                <option value={4}>4 Tickets</option>
-                <option value={5}>5 Tickets</option>
-              </select>
-            </div>
             <div className="flex items-end">
-              <button className="w-full p-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+              <button 
+                onClick={handleFilter}
+                className={`w-full p-3 rounded-lg transition-colors ${
+                  !isLoggedIn 
+                    ? 'bg-gray-400 text-gray-600 cursor-not-allowed' 
+                    : 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer'
+                }`}
+                disabled={!isLoggedIn}
+              >
                 Filter
               </button>
             </div>
@@ -352,10 +446,12 @@ const MovieDetailPage = ({ onBookingDataChange }) => {
                 <div 
                   key={cinema.id} 
                   onClick={() => handleCinemaSelect(cinema)}
-                  className={`flex items-center justify-center h-28 border-2 rounded-lg cursor-pointer transition-all ${
-                    bookingData.selectedCinema?.id === cinema.id 
-                      ? 'border-blue-600 bg-blue-50' 
-                      : 'border-gray-200 hover:border-blue-600'
+                  className={`flex items-center justify-center h-28 border-2 rounded-lg transition-all ${
+                    !isLoggedIn 
+                      ? 'border-gray-200 bg-gray-100 cursor-not-allowed opacity-50'
+                      : bookingData.selectedCinema?.id === cinema.id 
+                        ? 'border-blue-600 bg-blue-50 cursor-pointer' 
+                        : 'border-gray-200 hover:border-blue-600 cursor-pointer'
                   }`}
                 >
                   <div className="flex flex-col items-center justify-center w-full px-4">
@@ -370,10 +466,14 @@ const MovieDetailPage = ({ onBookingDataChange }) => {
             <div className="flex justify-center">
               <button 
                 onClick={handleBookNow}
-                className="px-10 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-                disabled={!bookingData.selectedDate || !bookingData.selectedTime || !bookingData.selectedLocation || !bookingData.selectedCinema}
+                className={`px-10 py-3 rounded-lg transition-colors ${
+                  !isLoggedIn || !bookingData.selectedDate || !bookingData.selectedTime || !bookingData.selectedLocation || !bookingData.selectedCinema
+                    ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                    : 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer'
+                }`}
+                disabled={!isLoggedIn || !bookingData.selectedDate || !bookingData.selectedTime || !bookingData.selectedLocation || !bookingData.selectedCinema}
               >
-                Book Now
+                {!isLoggedIn ? 'Login Required' : 'Book Now'}
               </button>
             </div>
           </div>

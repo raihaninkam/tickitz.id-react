@@ -1,170 +1,51 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router';
+import { useAuth } from '../hooks/useAuth';
+import { useFormValidation } from '../hooks/useFormValidation';
+import { usePasswordVisibility } from '../hooks/usePasswordVisibility';
+import { registerValidationRules } from '../utils/validationRules';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const Register = () => {
-    // State untuk menampung nilai input form
-    const [formData, setFormData] = useState({
-        email: '',
-        password: '',
-        terms: false,
-    });
+    const { registerUser } = useAuth();
+    const { showPassword, togglePassword } = usePasswordVisibility();
+    const [isRegistered, setIsRegistered] = useState(false);
 
-    // State untuk menampung pesan error validasi
-    const [errors, setErrors] = useState({});
+    const {
+        formData,
+        errors,
+        handleChange,
+        validate,
+        reset,
+        setError
+    } = useFormValidation(
+        {
+            email: '',
+            password: '',
+            terms: false
+        },
+        registerValidationRules
+    );
 
-    // State untuk mengontrol visibilitas password
-    const [showPassword, setShowPassword] = useState(false);
-
-    // State untuk menyimpan data user yang terdaftar (sinkron dengan localStorage)
-    const [registeredUsers, setRegisteredUsers] = useState([]);
-
-    // Load data dari localStorage saat komponen pertama kali dimuat
-    useEffect(() => {
-        const loadUsersFromStorage = () => {
-            try {
-                const storedUsers = localStorage.getItem('registeredUsers');
-                if (storedUsers) {
-                    const parsedUsers = JSON.parse(storedUsers);
-                    setRegisteredUsers(parsedUsers);
-                    console.log('Data users dimuat dari localStorage:', parsedUsers);
-                }
-            } catch (error) {
-                console.error('Error loading users from localStorage:', error);
-            }
-        };
-
-        loadUsersFromStorage();
-    }, []);
-
-    // Mengelola perubahan input
-    const handleChange = (e) => {
-        const { name, value, type, checked } = e.target;
-        setFormData({
-            ...formData,
-            [name]: type === 'checkbox' ? checked : value,
-        });
-
-        // Clear error saat user mulai mengetik
-        if (errors[name]) {
-            setErrors({
-                ...errors,
-                [name]: ''
-            });
-        }
-    };
-
-    // Fungsi untuk mengubah visibilitas password
-    const eyePwd = () => {
-        setShowPassword(!showPassword);
-    };
-
-    // Memvalidasi field form
-    const validateForm = () => {
-        let newErrors = {};
-        const { email, password, terms } = formData;
-
-        // Validasi Email
-        if (!email.trim()) {
-            newErrors.email = "Email tidak boleh kosong.";
-        } else if (!/\S+@\S+\.\S+/.test(email)) {
-            newErrors.email = "Format email tidak valid.";
-        } else if (registeredUsers.some(user => user.email.toLowerCase() === email.toLowerCase())) {
-            newErrors.email = "Email sudah terdaftar. Gunakan email lain.";
-        }
-
-        // Validasi Password
-        if (!password.trim()) {
-            newErrors.password = "Password tidak boleh kosong.";
-        } else if (password.length < 8) {
-            newErrors.password = "Password harus mengandung minimal 8 karakter.";
-        } else if (!/[a-z]/.test(password)) {
-            newErrors.password = "Password harus mengandung minimal 1 huruf kecil.";
-        } else if (!/[A-Z]/.test(password)) {
-            newErrors.password = "Password harus mengandung minimal 1 huruf besar.";
-        } else if (!/[!@#$%^&*/><]/.test(password)) {
-            newErrors.password = "Password harus mengandung minimal 1 karakter spesial (!@#$%^&*/><).";
-        } else if (!/[\d]/.test(password)) {
-            newErrors.password = "Password harus mengandung minimal 1 angka.";
-        }
-
-        // Validasi Syarat & Ketentuan
-        if (!terms) {
-            newErrors.terms = "Anda harus menyetujui syarat & ketentuan.";
-        }
-
-        setErrors(newErrors);
-        return Object.keys(newErrors).length === 0;
-    };
-
-    // Fungsi untuk menyimpan data ke localStorage
-    const saveToStorage = (userData) => {
-        try {
-            // Ambil data existing dari localStorage
-            const existingUsersJSON = localStorage.getItem('registeredUsers');
-            let existingUsers = [];
-            
-            if (existingUsersJSON) {
-                existingUsers = JSON.parse(existingUsersJSON);
-            }
-            
-            // Tambahkan user baru ke array
-            const updatedUsers = [...existingUsers, userData];
-            
-            // Simpan kembali ke localStorage
-            localStorage.setItem('registeredUsers', JSON.stringify(updatedUsers));
-            
-            // Update state React untuk sinkronisasi
-            setRegisteredUsers(updatedUsers);
-            
-            console.log('Data berhasil disimpan ke localStorage:', userData);
-            console.log('Semua user terdaftar:', updatedUsers);
-            console.log('Data di localStorage:', localStorage.getItem('registeredUsers'));
-            
-            return true;
-        } catch (error) {
-            console.error('Error saving to localStorage:', error);
-            return false;
-        }
-    };
-
-    // Menangani submit form
     const handleRegister = (event) => {
         event.preventDefault();
+        setIsRegistered(false);
 
-        // Reset errors sebelum validasi
-        setErrors({});
-
-        if (validateForm()) {
-            // Persiapkan data untuk disimpan
-            const userData = {
-                id: Date.now(), // Generate simple ID
-                email: formData.email.trim(),
-                password: formData.password, // Di aplikasi nyata, password harus di-hash
-                registeredAt: new Date().toISOString(),
-                isActive: true // Set sebagai active untuk kemudahan testing
-            };
-
-            // Simpan ke localStorage
-            const saveSuccess = saveToStorage(userData);
+        if (validate()) {
+            const result = registerUser(formData);
             
-            if (saveSuccess) {
-                console.log("Registrasi berhasil untuk:", userData.email);
-                alert("Registrasi berhasil! Data telah disimpan ke localStorage.");
-                
-                // Reset form setelah registrasi berhasil
-                setFormData({
-                    email: '',
-                    password: '',
-                    terms: false,
-                });
-                
-                // Reset errors
-                setErrors({});
+            if (result.success) {
+                setIsRegistered(true);
+                reset();
+                toast.success("Registrasi berhasil! Silakan login.");
+                console.log("Registrasi berhasil:", result.user.email);
             } else {
-                alert("Terjadi kesalahan saat menyimpan data. Silakan coba lagi.");
+                toast.error(result.message);
+                setError('email', result.message);
             }
         } else {
-            console.log("Validasi gagal. Mohon periksa kembali formulir Anda.");
+            toast.error("Mohon lengkapi semua field dengan benar.");
         }
     };
 
@@ -172,7 +53,7 @@ const Register = () => {
         <div className="min-h-screen bg-[url(/sign-up.svg)] bg-cover bg-center overflow-y-hidden">
             {/* Logo */}
             <div className="flex justify-center pt-12 pb-4">
-                <img src="/tickitz 1.svg" alt="" />
+                <img src="/tickitz white.svg" alt="" />
             </div>
 
             {/* Main Container */}
@@ -252,7 +133,7 @@ const Register = () => {
                                 />
                                 <button
                                     type="button"
-                                    onClick={eyePwd}
+                                    onClick={togglePassword}
                                     className="cursor-pointer"
                                 >
                                     {showPassword ? (
@@ -273,7 +154,7 @@ const Register = () => {
                             )}
                         </div>
 
-                        {/* Terms Checkbox */}
+                        {/* Terms Checkbox */}  
                         <div className="flex items-center mb-6">
                             <input
                                 type="checkbox"
@@ -290,6 +171,9 @@ const Register = () => {
                         {errors.terms && (
                             <p className="text-red-500 text-sm -mt-4 mb-4">{errors.terms}</p>
                         )}
+                        {isRegistered && (
+                            toast.error("Gunakan email lain!")
+                        )}
 
                         {/* Submit Button */}
                         <button 
@@ -298,9 +182,6 @@ const Register = () => {
                         >
                             Join For Free Now
                         </button>
-                        
-                        {/* Debug Info - Hapus di production */}
-                        
                     </form>
 
                     {/* Login Link */}
@@ -334,6 +215,20 @@ const Register = () => {
                     </div>
                 </div>
             </main>
+
+            {/* Toast Container */}
+            <ToastContainer
+                position="top-right"
+                autoClose={5000}
+                hideProgressBar={false}
+                newestOnTop={false}
+                closeOnClick
+                rtl={false}
+                pauseOnFocusLoss
+                draggable
+                pauseOnHover
+                theme="colored"
+            />
         </div>
     );
 };
