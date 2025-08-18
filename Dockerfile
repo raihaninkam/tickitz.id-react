@@ -1,27 +1,16 @@
-FROM node:22-alpine3.21 as builder
+FROM ubuntu:24.04
 
-WORKDIR /app
+# Update Repo dan Install SSH server
+RUN apt-get update && apt-get install openssh-server -y
+# Menambahkan direktori /run/sshd
+RUN mkdir -p /run/sshd
+# Membuat user non-root
+RUN useradd -m -d /home/raihaninkam -s /usr/bin/bash raihaninkam
+# Copy Public key dari client ke server
+COPY access_secret.pub /home/raihaninkam/.ssh/authorized_keys
+# security hardening
+RUN sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
+RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin no/' /etc/ssh/sshd_config
+RUN sed -i 's/#PubKeyAuthentication no/PubKeyAuthentication yes/' /etc/ssh/sshd_config
 
-COPY package.json package-lock.json ./
-
-RUN npm ci
-
-COPY . .
-
-RUN npm run build
-
-FROM nginx:stable-bookworm
-
-COPY --from=builder /app/nginx/nginx.conf /etc/nginx/
-
-COPY --from=builder /app/nginx/sites-available/app.conf /etc/nginx/sites-available/
-
-RUN mkdir -p /etc/nginx/sites-enabled
-RUN ln -s /etc/nginx/sites-available/app.conf /etc/nginx/sites-enabled/
-
-RUN mkdir -p /var/www/client
-COPY --from=builder /app/dist /var/www/client
-
-EXPOSE 80
-
-CMD ["nginx", "-g", "daemon off;"]
+CMD [ "/usr/sbin/sshd", "-D", "-e" ]
