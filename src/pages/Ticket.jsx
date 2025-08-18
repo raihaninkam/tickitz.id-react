@@ -1,33 +1,16 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router";
+import { useSelector } from "react-redux";
 import MyNavbar from "../components/Navbar";
 import MyFooter from "../components/Footer";
 
 const TicketResult = () => {
-  const [ticketData, setTicketData] = useState(null);
-  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Load ticket data from sessionStorage
-  useEffect(() => {
-    const savedTicketData = sessionStorage.getItem('ticketData');
-    if (savedTicketData) {
-      try {
-        const parsedData = JSON.parse(savedTicketData);
-        setTicketData(parsedData);
-        setLoading(false);
-      } catch (error) {
-        console.error('Error parsing ticket data:', error);
-        // Redirect back to payment page if no valid ticket data
-        navigate('/payment');
-      }
-    } else {
-      // Redirect back to payment page if no ticket data
-      navigate('/payment');
-    }
-  }, [navigate]);
+  // Ambil data dari Redux
+  const ticketData = useSelector((state) => state.order.currentOrder);
 
-  // Fallback data if no ticket data available
+  // Fallback data jika tidak ada ticketData
   const fallbackData = {
     ticketInfo: {
       movieTitle: 'Spider-Man: No Way Home',
@@ -41,16 +24,29 @@ const TicketResult = () => {
     }
   };
 
+  // Jika tidak ada ticketData, gunakan fallback
   const currentTicketData = ticketData || fallbackData;
+
+  useEffect(() => {
+    // Jika tidak ada ticketData sama sekali, bisa redirect ke home atau payment
+    if (!ticketData) {
+      // navigate('/payment'); // Optional: redirect jika ingin
+    }
+  }, [ticketData, navigate]);
 
   const handleDownloadPDF = () => {
     // Create a new window for printing/PDF generation
     const printWindow = window.open("", "_blank");
-
-    // Create the ticket content for PDF with dynamic data
+    printWindow.document.write("<html><head><title>Ticket</title></head><body>");
+    printWindow.document.write(`<h1>Ticket for ${currentTicketData.ticketInfo.movieTitle}</h1>`);
+    printWindow.document.write(`<p>Category: ${currentTicketData.ticketInfo.category}</p>`);
+    printWindow.document.write(`<p>Date: ${currentTicketData.ticketInfo.date}</p>`);
+    printWindow.document.write(`<p>Time: ${currentTicketData.ticketInfo.time}</p>`);
+    printWindow.document.write(`<p>Count: ${currentTicketData.ticketInfo.count} pcs</p>`);
+    printWindow.document.write(`<p>Seats: ${currentTicketData.ticketInfo.seats}</p>`);
+    printWindow.document.write(`<p>Total: ${currentTicketData.ticketInfo.total}</p>`);
+    printWindow.document.write("</body></html>");
     printWindow.document.close();
-
-    // Wait for content to load, then trigger print dialog
     setTimeout(() => {
       printWindow.print();
       printWindow.close();
@@ -58,26 +54,10 @@ const TicketResult = () => {
   };
 
   const handleDone = () => {
-    // Clear all stored data
-    sessionStorage.removeItem('ticketData');
-    sessionStorage.removeItem('orderData');
-    sessionStorage.removeItem('paymentData');
-    
-    // Navigate to home or movies page
+    // Clear all stored data (opsional, jika pakai Redux bisa dispatch reset)
+    // navigate ke home
     navigate('/');
   };
-
-  // Show loading while fetching ticket data
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <MyNavbar />
-        <div className="flex items-center justify-center h-96">
-          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -85,7 +65,7 @@ const TicketResult = () => {
       <MyNavbar />
 
       {/* Hero Section */}
-      <section className="overflow-hidden">
+      <section className="">
         <div className="container mx-auto px-4">
           <div className="flex flex-col lg:flex-row items-center min-h-screen">
             {/* Left Side */}
@@ -117,14 +97,18 @@ const TicketResult = () => {
 
                 {/* QR Code */}
                 <div className="flex justify-center mb-8">
-                    <img src="/QR Code 1.svg" alt="QR Code" />
+                  <img src="/QR Code 1.svg" alt="QR Code" />
                 </div>
 
                 {/* Movie Info */}
                 <div className="flex justify-between mb-6">
                   <div>
                     <p className="text-gray-500 text-sm">Movie</p>
-                    <p className="font-bold">{currentTicketData.ticketInfo.movieTitle.length > 15 ? currentTicketData.ticketInfo.movieTitle.substring(0, 15) + '..' : currentTicketData.ticketInfo.movieTitle}</p>
+                    <p className="font-bold">
+                      {currentTicketData.ticketInfo.movieTitle.length > 15
+                        ? currentTicketData.ticketInfo.movieTitle.substring(0, 15) + '..'
+                        : currentTicketData.ticketInfo.movieTitle}
+                    </p>
                   </div>
                   <div>
                     <p className="text-gray-500 text-sm">Category</p>
@@ -170,7 +154,7 @@ const TicketResult = () => {
                   >
                     <span>Download</span>
                   </button>
-                  <button 
+                  <button
                     onClick={handleDone}
                     className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 font-semibold"
                   >
