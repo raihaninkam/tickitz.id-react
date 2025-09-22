@@ -9,21 +9,21 @@ const MovieApp = () => {
   const [genres, setGenres] = useState([]);
   const [loading, setLoading] = useState(false);
   const [totalPages, setTotalPages] = useState(1);
-  const [searchInput, setSearchInput] = useState('');
-  
+  const [searchInput, setSearchInput] = useState("");
+  const [totalCount, setTotalCount] = useState(0);
+
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const debounceTimeoutRef = useRef(null);
 
   // Get values from URL search params
-  const currentPage = parseInt(searchParams.get('page')) || 1;
-  const currentGenre = searchParams.get('genre') || 'all';
-  const searchQuery = searchParams.get('search') || '';
+  const currentPage = parseInt(searchParams.get("page")) || 1;
+  const currentGenre = searchParams.get("genre") || "all";
+  const searchQuery = searchParams.get("search") || "";
 
-  // Fixed API configuration - using direct values instead of environment variables
-  const API_KEY = import.meta.env.VITE_TMDB_API_KEY;
-  const BASE_URL = import.meta.env.VITE_TMDB_BASE_URL;
-  const IMAGE_BASE_URL = import.meta.env.VITE_TMDB_IMAGE_BASE_URL;
+  // Backend API configuration
+  const API_BASE_URL = import.meta.env.VITE_BE_HOST;
+  const ITEMS_PER_PAGE = 12; // Adjust based on your preference
 
   // Initialize search input from URL params
   useEffect(() => {
@@ -33,16 +33,16 @@ const MovieApp = () => {
   // Update URL search params
   const updateSearchParams = (updates) => {
     const newParams = new URLSearchParams(searchParams);
-    
+
     // Update or remove parameters
     Object.entries(updates).forEach(([key, value]) => {
-      if (value === '' || value === 'all' || value === 1) {
+      if (value === "" || value === "all" || value === 1) {
         newParams.delete(key);
       } else {
         newParams.set(key, value.toString());
       }
     });
-    
+
     setSearchParams(newParams);
   };
 
@@ -63,9 +63,9 @@ const MovieApp = () => {
     updateSearchParams({
       search: value,
       page: 1,
-      genre: currentGenre
+      genre: currentGenre,
     });
-  }, 500); // 500ms delay
+  }, 500);
 
   // Load data on component mount and when dependencies change
   useEffect(() => {
@@ -87,11 +87,29 @@ const MovieApp = () => {
 
   const loadGenres = async () => {
     try {
-      const response = await fetch(
-        `${BASE_URL}/genre/movie/list?api_key=${API_KEY}`
-      );
-      const data = await response.json();
-      setGenres(data.genres || []);
+      // You'll need to create an endpoint to get genres from your backend
+      // For now, using static genres based on your database structure
+      const staticGenres = [
+        { id: "Action", name: "Action" },
+        { id: "Adventure", name: "Adventure" },
+        { id: "Animation", name: "Animation" },
+        { id: "Comedy", name: "Comedy" },
+        { id: "Crime", name: "Crime" },
+        { id: "Documentary", name: "Documentary" },
+        { id: "Drama", name: "Drama" },
+        { id: "Family", name: "Family" },
+        { id: "Fantasy", name: "Fantasy" },
+        { id: "History", name: "History" },
+        { id: "Horror", name: "Horror" },
+        { id: "Music", name: "Music" },
+        { id: "Mystery", name: "Mystery" },
+        { id: "Romance", name: "Romance" },
+        { id: "Science Fiction", name: "Sci-Fi" },
+        { id: "Thriller", name: "Thriller" },
+        { id: "War", name: "War" },
+        { id: "Western", name: "Western" },
+      ];
+      setGenres(staticGenres);
     } catch (error) {
       console.error("Error loading genres:", error);
     }
@@ -100,30 +118,47 @@ const MovieApp = () => {
   const loadMovies = async () => {
     setLoading(true);
     try {
-      let endpoint = "";
-      let params = new URLSearchParams({
-        api_key: API_KEY,
+      // Build query parameters
+      const params = new URLSearchParams({
         page: currentPage.toString(),
+        limit: ITEMS_PER_PAGE.toString(),
       });
 
+      // Add title filter if search query exists
       if (searchQuery.trim()) {
-        endpoint = `${BASE_URL}/search/movie`;
-        params.append("query", searchQuery);
-      } else if (currentGenre !== "all") {
-        endpoint = `${BASE_URL}/discover/movie`;
-        params.append("with_genres", currentGenre);
-      } else {
-        endpoint = `${BASE_URL}/movie/popular`;
+        params.append("title", searchQuery);
       }
 
-      const response = await fetch(`${endpoint}?${params}`);
-      const data = await response.json();
+      // Add genre filter if not "all"
+      if (currentGenre !== "all") {
+        params.append("genre", currentGenre);
+      }
 
-      setMovies(data.results || []);
-      setTotalPages(Math.min(data.total_pages || 1, 500));
+      const response = await fetch(`${API_BASE_URL}/movies/filter?${params}`);
+      const data = await response.json();
+      console.log(
+        "count:",
+        data.count,
+        "totalPages:",
+        Math.ceil(data.count / ITEMS_PER_PAGE)
+      );
+
+      if (data.success) {
+        setMovies(data.data || []);
+        setTotalCount(data.count || 0);
+        // Calculate total pages based on items per page
+        // You might want to add total_count from backend for accurate pagination
+        setTotalPages(Math.max(1, Math.ceil(data.count / ITEMS_PER_PAGE)));
+      } else {
+        setMovies([]);
+        setTotalCount(0);
+        setTotalPages(1);
+      }
     } catch (error) {
       console.error("Error loading movies:", error);
       setMovies([]);
+      setTotalCount(0);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }
@@ -131,8 +166,8 @@ const MovieApp = () => {
 
   const handleSearch = (e) => {
     const value = e.target.value;
-    setSearchInput(value); // Update input immediately for responsive UI
-    debouncedUpdateSearch(value); // Debounce the API call
+    setSearchInput(value);
+    debouncedUpdateSearch(value);
   };
 
   const handleGenreChange = (genreId) => {
@@ -140,15 +175,15 @@ const MovieApp = () => {
     if (debounceTimeoutRef.current) {
       clearTimeout(debounceTimeoutRef.current);
     }
-    
+
     updateSearchParams({
       genre: genreId,
       page: 1,
-      search: ''
+      search: "",
     });
 
     // Clear search input
-    setSearchInput('');
+    setSearchInput("");
   };
 
   const goToPage = (page) => {
@@ -156,7 +191,7 @@ const MovieApp = () => {
       updateSearchParams({
         page: page,
         search: searchQuery,
-        genre: currentGenre
+        genre: currentGenre,
       });
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
@@ -171,48 +206,33 @@ const MovieApp = () => {
     navigate(`/home/movies/${movieId}`);
   };
 
-  // Helper functions from home.jsx
-  const getGenreNames = (genreIds) => {
-    const genreMap = {
-      28: "Action",
-      12: "Adventure",
-      16: "Animation",
-      35: "Comedy",
-      80: "Crime",
-      99: "Documentary",
-      18: "Drama",
-      10751: "Family",
-      14: "Fantasy",
-      36: "History",
-      27: "Horror",
-      10402: "Music",
-      9648: "Mystery",
-      10749: "Romance",
-      878: "Sci-Fi",
-      10770: "TV Movie",
-      53: "Thriller",
-      10752: "War",
-      37: "Western",
-    };
+  // Helper functions adapted for backend data structure
+  const getGenreNames = (genresString) => {
+    if (!genresString) return ["Action", "Adventure"];
 
-    return (
-      genreIds?.slice(0, 2).map((id) => genreMap[id] || "Action") || [
-        "Action",
-        "Adventure",
-      ]
-    );
+    const genreArray = genresString.split(", ");
+    return genreArray.slice(0, 2);
   };
 
   const isRecommended = (movie) => {
-    return movie && movie.vote_average >= 7.5;
+    return movie && movie.rating >= 7.5;
   };
 
-  // Enhanced MovieCard component from home.jsx
+  // Format release date
+  // const formatReleaseDate = (dateString) => {
+  //   try {
+  //     return new Date(dateString).getFullYear();
+  //   } catch {
+  //     return "2024";
+  //   }
+  // };
+
+  // Enhanced MovieCard component adapted for backend data
   const MovieCard = ({ movie, index }) => {
     const [isPressed, setIsPressed] = useState(false);
     const [showMobileButtons, setShowMobileButtons] = useState(false);
-    const genres = getGenreNames(movie.genre_ids);
-    
+    const genres = getGenreNames(movie.genres);
+
     // Handle mobile tap
     const handleMobileTap = () => {
       setShowMobileButtons(!showMobileButtons);
@@ -226,15 +246,27 @@ const MovieApp = () => {
     const handleTouchEnd = () => {
       setIsPressed(false);
     };
-    
+
+    // Get full image URL - adjust based on your backend image serving
+    const getImageUrl = (imagePath) => {
+      if (!imagePath)
+        return "https://via.placeholder.com/500x750/e5e7eb/6b7280?text=No+Image";
+
+      // If imagePath is already a full URL, return as is
+      if (imagePath.startsWith("http")) return imagePath;
+
+      // Otherwise, prepend your backend base URL
+      return `${API_BASE_URL}/images/${imagePath}`;
+    };
+
     return (
       <div
         className={`bg-white font-['Mulish'] rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-2 group opacity-0 animate-fade-in-up ${
-          isPressed ? 'scale-95 shadow-lg' : ''
+          isPressed ? "scale-95 shadow-lg" : ""
         }`}
         style={{
           animationDelay: `${index * 100}ms`,
-          animationFillMode: 'forwards'
+          animationFillMode: "forwards",
         }}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
@@ -244,21 +276,22 @@ const MovieApp = () => {
             Recommended
           </div>
         )}
-        
+
         <div className="relative overflow-hidden">
           <img
-            src={`${IMAGE_BASE_URL}${movie.poster_path}`}
+            src={getImageUrl(movie.poster_image)}
             alt={movie.title}
             className="w-full h-96 object-cover group-hover:scale-105 transition-transform duration-300"
             loading="lazy"
             onClick={handleMobileTap}
             onError={(e) => {
-              e.target.src = "https://via.placeholder.com/500x750/e5e7eb/6b7280?text=No+Image";
+              e.target.src =
+                "https://via.placeholder.com/500x750/e5e7eb/6b7280?text=No+Image";
             }}
           />
-          
+
           {/* Desktop hover overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center p-6 hidden md:flex">
+          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 items-center justify-center p-6 hidden md:flex">
             <div className="flex flex-wrap gap-3 items-center justify-center">
               <button
                 onClick={() => showMovieDetails(movie.id)}
@@ -276,9 +309,13 @@ const MovieApp = () => {
           </div>
 
           {/* Mobile toggle overlay */}
-          <div className={`absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent transition-opacity duration-300 flex items-center justify-center p-6 md:hidden ${
-            showMobileButtons ? 'opacity-100' : 'opacity-0 pointer-events-none'
-          }`}>
+          <div
+            className={`absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent transition-opacity duration-300 flex items-center justify-center p-6 md:hidden ${
+              showMobileButtons
+                ? "opacity-100"
+                : "opacity-0 pointer-events-none"
+            }`}
+          >
             <div className="flex flex-wrap gap-3 items-center justify-center">
               <button
                 onClick={() => showMovieDetails(movie.id)}
@@ -295,23 +332,41 @@ const MovieApp = () => {
             </div>
           </div>
         </div>
-        
+
         <div className="p-6">
-          <h3 className="text-lg font-bold text-gray-800 mb-3 line-clamp-2 leading-tight transition-colors duration-300 group-hover:text-[#1D4ED8] active:text-[#1D4ED8]">
+          <h3 className="text-lg font-bold text-gray-800 mb-2 line-clamp-2 leading-tight transition-colors duration-300 group-hover:text-[#1D4ED8] active:text-[#1D4ED8]">
             {movie.title}
           </h3>
-                  
+
+          {/* <div className="flex items-center gap-2 mb-3 text-sm text-gray-500">
+            <span>{formatReleaseDate(movie.release_date)}</span>
+            {movie.duration_minutes && (
+              <>
+                <span>•</span>
+                <span>{movie.duration_minutes} min</span>
+              </>
+            )}
+            {movie.rating && (
+              <>
+                <span>•</span>
+                <span className="flex items-center gap-1">
+                  ⭐ {movie.rating}
+                </span>
+              </>
+            )}
+          </div> */}
+
           <div className="flex flex-wrap gap-2">
             {genres.map((genre, genreIndex) => (
               <span
                 key={genreIndex}
                 className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium transition-all duration-300 hover:bg-[#1D4ED8] hover:text-white active:bg-[#1D4ED8] active:text-white cursor-pointer"
+                onClick={() => handleGenreChange(genre)}
               >
                 {genre}
               </span>
             ))}
           </div>
-
         </div>
       </div>
     );
@@ -339,6 +394,18 @@ const MovieApp = () => {
           ‹
         </button>
 
+        {startPage > 1 && (
+          <>
+            <button
+              onClick={() => goToPage(1)}
+              className="w-10 h-10 rounded-full font-semibold transition-colors bg-gray-100 text-gray-600 hover:bg-gray-200"
+            >
+              1
+            </button>
+            {startPage > 2 && <span className="px-2">...</span>}
+          </>
+        )}
+
         {pages.map((page) => (
           <button
             key={page}
@@ -353,12 +420,24 @@ const MovieApp = () => {
           </button>
         ))}
 
+        {endPage < totalPages && (
+          <>
+            {endPage < totalPages - 1 && <span className="px-2">...</span>}
+            <button
+              onClick={() => goToPage(totalPages)}
+              className="w-10 h-10 rounded-full font-semibold transition-colors bg-gray-100 text-gray-600 hover:bg-gray-200"
+            >
+              {totalPages}
+            </button>
+          </>
+        )}
+
         <button
           onClick={() => goToPage(currentPage + 1)}
           disabled={currentPage === totalPages}
           className="w-10 h-10 border border-gray-300 rounded-full bg-white text-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
-          <img src="/Arrow.svg" className="w-10 h-10 bg-blue-600 rounded-full p-2" alt="" />
+          ›
         </button>
       </div>
     );
@@ -392,7 +471,7 @@ const MovieApp = () => {
 
       <div className="min-h-screen bg-white font-sans">
         {/* Header */}
-        <MyNavbar/>
+        <MyNavbar />
 
         {/* Hero Section */}
         <div className="bg-[url(/movie-jumbotron.svg)] bg-cover bg-center text-white py-16 px-4 md:px-20">
@@ -429,8 +508,8 @@ const MovieApp = () => {
                   className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-600 focus:outline-none transition-colors"
                 />
               </div>
-              {/* Optional: Show loading indicator when typing */}
-              {searchInput !== searchQuery && (
+              {/* Show search status */}
+              {searchInput !== searchQuery && searchInput.trim() && (
                 <div className="mt-2 text-sm text-gray-500 flex items-center gap-2">
                   <div className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin"></div>
                   Searching...
@@ -440,7 +519,9 @@ const MovieApp = () => {
 
             {/* Filter Section */}
             <div className="flex-1 w-full">
-              <p className="mb-4 font-semibold text-gray-700">Filter by Genre</p>
+              <p className="mb-4 font-semibold text-gray-700">
+                Filter by Genre
+              </p>
               <div className="flex gap-2 overflow-x-auto pb-2">
                 <button
                   onClick={() => handleGenreChange("all")}
@@ -455,9 +536,9 @@ const MovieApp = () => {
                 {genres.slice(0, 6).map((genre) => (
                   <button
                     key={genre.id}
-                    onClick={() => handleGenreChange(genre.id.toString())}
+                    onClick={() => handleGenreChange(genre.id)}
                     className={`px-6 py-2 rounded-full border-2 transition-all whitespace-nowrap ${
-                      currentGenre === genre.id.toString()
+                      currentGenre === genre.id
                         ? "bg-blue-600 border-blue-600 text-white"
                         : "bg-white border-gray-200 text-gray-600 hover:border-blue-600 hover:text-blue-600"
                     }`}
@@ -468,6 +549,15 @@ const MovieApp = () => {
               </div>
             </div>
           </div>
+
+          {/* Results info */}
+          {!loading && totalCount > 0 && (
+            <div className="mt-4 text-sm text-gray-600">
+              Showing {movies.length} of {totalCount} movies
+              {searchQuery && ` for "${searchQuery}"`}
+              {currentGenre !== "all" && ` in ${currentGenre}`}
+            </div>
+          )}
         </div>
 
         {/* Movies Grid */}
@@ -483,7 +573,9 @@ const MovieApp = () => {
                 No movies found
               </h3>
               <p className="text-gray-500">
-                Try adjusting your search or filter criteria
+                {searchQuery || currentGenre !== "all"
+                  ? "Try adjusting your search or filter criteria"
+                  : "No movies available at the moment"}
               </p>
             </div>
           ) : (
@@ -500,10 +592,10 @@ const MovieApp = () => {
         </div>
 
         {/* Newsletter Section */}
-        <NewsletterSubscribe/>
+        <NewsletterSubscribe />
 
         {/* Footer */}
-        <MyFooter/>
+        <MyFooter />
       </div>
     </>
   );

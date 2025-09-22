@@ -11,14 +11,7 @@ const SectionHome = () => {
   const [upcomingPage, setUpcomingPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const navigate = useNavigate()
-
-  
-
-
-  const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY;
-  const TMDB_BASE_URL = import.meta.env.VITE_TMDB_BASE_URL;
-  const TMDB_IMAGE_BASE_URL = import.meta.env.VITE_TMDB_IMAGE_BASE_URL;
+  const navigate = useNavigate();
 
   const UPCOMING_PER_PAGE = 4;
 
@@ -60,9 +53,14 @@ const SectionHome = () => {
     <div className="flex flex-col items-center justify-center py-12">
       <div className="relative">
         <div className="w-12 h-12 border-4 border-gray-200 border-t-[#1D4ED8] rounded-full animate-spin"></div>
-        <div className="w-8 h-8 border-4 border-gray-100 border-t-[#1D4ED8] rounded-full animate-spin absolute top-2 left-2" style={{animationDirection: 'reverse', animationDuration: '0.8s'}}></div>
+        <div
+          className="w-8 h-8 border-4 border-gray-100 border-t-[#1D4ED8] rounded-full animate-spin absolute top-2 left-2"
+          style={{ animationDirection: "reverse", animationDuration: "0.8s" }}
+        ></div>
       </div>
-      <p className="text-[#1D4ED8] font-medium mt-4 animate-pulse">Loading movies...</p>
+      <p className="text-[#1D4ED8] font-medium mt-4 animate-pulse">
+        Loading movies...
+      </p>
     </div>
   );
 
@@ -70,25 +68,20 @@ const SectionHome = () => {
   const MovieCard = ({ movie, index, isUpcoming = false }) => {
     const [isPressed, setIsPressed] = useState(false);
     const [showMobileButtons, setShowMobileButtons] = useState(false);
-    const genres = getGenreNames(movie.genre_ids);
-    
-    // Mock functions for button actions
+    const genres = movie.genres ? movie.genres.split(", ").slice(0, 2) : [];
+
     const showMovieDetails = (movieId) => {
-      console.log(`Showing details for movie ID: ${movieId}`);
       navigate(`/home/movies/${movieId}`);
     };
 
     const buyTicket = (movieId) => {
-      console.log(`Buying ticket for movie ID: ${movieId}`);
       navigate(`/home/movies/${movieId}`);
     };
 
-    // Handle mobile tap
     const handleMobileTap = () => {
       setShowMobileButtons(!showMobileButtons);
     };
 
-    // Handle touch events for mobile
     const handleTouchStart = () => {
       setIsPressed(true);
     };
@@ -96,15 +89,15 @@ const SectionHome = () => {
     const handleTouchEnd = () => {
       setIsPressed(false);
     };
-    
+
     return (
       <div
         className={`bg-white font-['Mulish'] rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-2 group opacity-0 animate-fade-in-up ${
-          isPressed ? 'scale-95 shadow-lg' : ''
+          isPressed ? "scale-95 shadow-lg" : ""
         }`}
         style={{
           animationDelay: `${index * 100}ms`,
-          animationFillMode: 'forwards'
+          animationFillMode: "forwards",
         }}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
@@ -114,30 +107,31 @@ const SectionHome = () => {
             Recommended
           </div>
         )}
-        
+
         <div className="relative overflow-hidden">
           <img
-            src={`${TMDB_IMAGE_BASE_URL}${movie.poster_path}`}
-            alt={movie.title}
+            src={movie.poster_image || movie.PosterImage}
+            alt={movie.title || movie.Title}
             className="w-full h-96 object-cover group-hover:scale-105 transition-transform duration-300"
             loading="lazy"
             onClick={handleMobileTap}
             onError={(e) => {
-              e.target.src = "https://via.placeholder.com/500x750/e5e7eb/6b7280?text=No+Image";
+              e.target.src =
+                "https://via.placeholder.com/500x750/e5e7eb/6b7280?text=No+Image";
             }}
           />
-          
+
           {/* Desktop hover overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center p-6 hidden md:flex">
+          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 items-center justify-center p-6 hidden md:flex">
             <div className="flex flex-wrap gap-3 items-center justify-center">
               <button
-                onClick={() => showMovieDetails(movie.id)}
+                onClick={() => showMovieDetails(movie.id || movie.Id)}
                 className="px-4 py-2 border-2 border-white text-white rounded-lg hover:bg-white hover:text-gray-800 transition-colors font-semibold"
               >
                 View Details
               </button>
               <button
-                onClick={() => buyTicket(movie.id)}
+                onClick={() => buyTicket(movie.id || movie.Id)}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
               >
                 Buy Ticket
@@ -146,18 +140,22 @@ const SectionHome = () => {
           </div>
 
           {/* Mobile toggle overlay */}
-          <div className={`absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent transition-opacity duration-300 flex items-center justify-center p-6 md:hidden ${
-            showMobileButtons ? 'opacity-100' : 'opacity-0 pointer-events-none'
-          }`}>
+          <div
+            className={`absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent transition-opacity duration-300 flex items-center justify-center p-6 md:hidden ${
+              showMobileButtons
+                ? "opacity-100"
+                : "opacity-0 pointer-events-none"
+            }`}
+          >
             <div className="flex flex-wrap gap-3 items-center justify-center">
               <button
-                onClick={() => showMovieDetails(movie.id)}
+                onClick={() => showMovieDetails(movie.id || movie.Id)}
                 className="px-4 py-2 border-2 border-white text-white rounded-lg active:bg-white active:text-gray-800 transition-colors font-semibold"
               >
                 View Details
               </button>
               <button
-                onClick={() => buyTicket(movie.id)}
+                onClick={() => buyTicket(movie.id || movie.Id)}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg active:bg-blue-700 transition-colors font-semibold"
               >
                 Buy Ticket
@@ -165,20 +163,20 @@ const SectionHome = () => {
             </div>
           </div>
         </div>
-        
+
         <div className="p-6">
           {isUpcoming && (
             <div className="date font-bold text-[#1D4ED8] mb-3">
-              {movie.release_date
-                ? formatReleaseDate(movie.release_date)
+              {movie.release_date || movie.ReleaseDate
+                ? formatReleaseDate(movie.release_date || movie.ReleaseDate)
                 : "Coming Soon"}
             </div>
           )}
-          
+
           <h3 className="text-lg font-bold text-gray-800 mb-3 line-clamp-2 leading-tight transition-colors duration-300 group-hover:text-[#1D4ED8] active:text-[#1D4ED8]">
-            {movie.title}
+            {movie.title || movie.Title}
           </h3>
-                  
+
           <div className="flex flex-wrap gap-2">
             {genres.map((genre, genreIndex) => (
               <span
@@ -189,7 +187,6 @@ const SectionHome = () => {
               </span>
             ))}
           </div>
-
         </div>
       </div>
     );
@@ -199,63 +196,55 @@ const SectionHome = () => {
     try {
       setIsLoading(true);
       setError(null);
-      console.log("Fetching movies from TMDB...");
 
-      // Fetch now playing movies
-      const nowPlayingResponse = await fetch(
-        `${TMDB_BASE_URL}/movie/now_playing?api_key=${TMDB_API_KEY}&language=en-US&page=1`
+      // Fetch all movies from backend database
+      const allMoviesResponse = await fetch(
+        `${import.meta.env.VITE_BE_HOST}/movies`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
       );
 
-      if (!nowPlayingResponse.ok) {
-        throw new Error(`HTTP error! status: ${nowPlayingResponse.status}`);
+      if (!allMoviesResponse.ok) {
+        throw new Error(`HTTP error! status: ${allMoviesResponse.status}`);
       }
 
-      const nowPlayingData = await nowPlayingResponse.json();
-      console.log("Now playing movies:", nowPlayingData);
+      const allMoviesData = await allMoviesResponse.json();
+      const allMovies = allMoviesData.data || [];
 
-      // Fetch upcoming movies
+      // Fetch upcoming movies from backend database
       const upcomingResponse = await fetch(
-        `${TMDB_BASE_URL}/movie/upcoming?api_key=${TMDB_API_KEY}&language=en-US&page=1`
+        `${import.meta.env.VITE_BE_HOST}/movies/upcoming`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
       );
-      
-      if (!upcomingResponse.ok) {
-        throw new Error(`HTTP error! status: ${upcomingResponse.status}`);
-      }
-      
-      const upcomingData = await upcomingResponse.json();
-      console.log("Upcoming movies:", upcomingData);
 
-      // Fetch popular movies for hero section
-      const popularResponse = await fetch(
-        `${TMDB_BASE_URL}/movie/popular?api_key=${TMDB_API_KEY}&language=en-US&page=1`
+      let upcomingMoviesData = [];
+      if (upcomingResponse.ok) {
+        const upcomingData = await upcomingResponse.json();
+        upcomingMoviesData = upcomingData.data || [];
+      }
+
+      // Set movies data
+      setNowPlayingMovies(allMovies.slice(0, 4));
+      setUpcomingMovies(
+        upcomingMoviesData.length > 0
+          ? upcomingMoviesData
+          : allMovies.slice(4, 24)
       );
-      
-      if (!popularResponse.ok) {
-        throw new Error(`HTTP error! status: ${popularResponse.status}`);
-      }
-      
-      const popularData = await popularResponse.json();
-      console.log("Popular movies:", popularData);
+      setHeroMovies(allMovies.slice(0, 4));
 
-      if (nowPlayingData.results && nowPlayingData.results.length > 0) {
-        setNowPlayingMovies(nowPlayingData.results.slice(0, 4));
-      }
-
-      if (upcomingData.results && upcomingData.results.length > 0) {
-        setUpcomingMovies(upcomingData.results.slice(0, 20));
-      }
-
-      if (popularData.results && popularData.results.length > 0) {
-        setHeroMovies(popularData.results.slice(0, 4));
-      }
-      
-      // Add delay to show loading animation better
       setTimeout(() => {
         setIsLoading(false);
       }, 500);
-      
     } catch (error) {
-      console.error("Error fetching movies:", error);
       setError(error.message);
       setIsLoading(false);
     }
@@ -264,37 +253,6 @@ const SectionHome = () => {
   useEffect(() => {
     fetchMovies();
   }, []);
-
-  const getGenreNames = (genreIds) => {
-    const genreMap = {
-      28: "Action",
-      12: "Adventure",
-      16: "Animation",
-      35: "Comedy",
-      80: "Crime",
-      99: "Documentary",
-      18: "Drama",
-      10751: "Family",
-      14: "Fantasy",
-      36: "History",
-      27: "Horror",
-      10402: "Music",
-      9648: "Mystery",
-      10749: "Romance",
-      878: "Sci-Fi",
-      10770: "TV Movie",
-      53: "Thriller",
-      10752: "War",
-      37: "Western",
-    };
-
-    return (
-      genreIds?.slice(0, 2).map((id) => genreMap[id] || "Action") || [
-        "Action",
-        "Adventure",
-      ]
-    );
-  };
 
   const formatReleaseDate = (dateString) => {
     if (!dateString) return "Coming Soon";
@@ -306,11 +264,14 @@ const SectionHome = () => {
   };
 
   const isRecommended = (movie) => {
-    return movie && movie.vote_average >= 7.5;
+    const rating = movie.rating || movie.Rating;
+    return rating && parseFloat(rating) >= 7.5;
   };
 
   // PAGINATION UPCOMING MOVIE
-  const totalUpcomingPages = Math.ceil(upcomingMovies.length / UPCOMING_PER_PAGE);
+  const totalUpcomingPages = Math.ceil(
+    upcomingMovies.length / UPCOMING_PER_PAGE
+  );
 
   const pagedUpcomingMovies = upcomingMovies.slice(
     (upcomingPage - 1) * UPCOMING_PER_PAGE,
@@ -338,7 +299,7 @@ const SectionHome = () => {
         .shimmer-animation {
           animation: shimmer 2s infinite;
         }
-        
+
         @keyframes shimmer {
           0% {
             transform: translateX(-100%);
@@ -347,7 +308,7 @@ const SectionHome = () => {
             transform: translateX(100%);
           }
         }
-        
+
         @keyframes fade-in-up {
           from {
             opacity: 0;
@@ -358,20 +319,21 @@ const SectionHome = () => {
             transform: translateY(0);
           }
         }
-        
+
         .animate-fade-in-up {
           animation: fade-in-up 0.6s ease-out forwards;
         }
-        
+
         @keyframes pulse-slow {
-          0%, 100% {
+          0%,
+          100% {
             opacity: 1;
           }
           50% {
             opacity: 0.7;
           }
         }
-        
+
         .animate-pulse-slow {
           animation: pulse-slow 2s infinite;
         }
@@ -411,21 +373,25 @@ const SectionHome = () => {
           <div className="mt-12 w-full max-w-[320px] sm:max-w-[380px] md:max-w-none lg:w-5/12 mx-auto md:mx-0 h-[280px] xs:h-[320px] sm:h-[360px] md:h-[400px] grid grid-cols-2 gap-1 xs:gap-2 sm:gap-[6px] md:gap-[8px] grid-rows-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,2fr)]">
             {heroMovies.map((movie, index) => (
               <img
-                key={movie.id}
-                src={`${TMDB_IMAGE_BASE_URL}${movie.poster_path}`}
-                alt={movie.title}
+                key={movie.id || movie.Id}
+                src={movie.poster_image || movie.PosterImage}
+                alt={movie.title || movie.Title}
                 className={`w-full h-full object-cover object-center rounded-lg transition-all duration-500 ease-out transform opacity-0 animate-fade-in-up hover:scale-105 cursor-pointer ${
-                  index === 0 ? 'col-start-1 col-end-2 row-start-1 row-end-2 rounded-t-[8px] xs:rounded-t-[10px] sm:rounded-t-[16px] md:rounded-t-[20px] object-[center_20%]' :
-                  index === 1 ? 'col-start-2 col-end-3 row-start-1 row-end-3 rounded-t-[8px] xs:rounded-t-[10px] sm:rounded-t-[16px] md:rounded-t-[20px] object-[center_10%]' :
-                  index === 2 ? 'col-start-1 col-end-2 row-start-2 row-end-4 rounded-b-[8px] xs:rounded-b-[10px] sm:rounded-b-[16px] md:rounded-b-[20px] object-[center_10%]' :
-                  'col-start-2 col-end-3 row-start-3 row-end-4 rounded-b-[8px] xs:rounded-b-[10px] sm:rounded-b-[16px] md:rounded-b-[20px]'
+                  index === 0
+                    ? "col-start-1 col-end-2 row-start-1 row-end-2 rounded-t-[8px] xs:rounded-t-[10px] sm:rounded-t-[16px] md:rounded-t-[20px] object-[center_20%]"
+                    : index === 1
+                    ? "col-start-2 col-end-3 row-start-1 row-end-3 rounded-t-[8px] xs:rounded-t-[10px] sm:rounded-t-[16px] md:rounded-t-[20px] object-[center_10%]"
+                    : index === 2
+                    ? "col-start-1 col-end-2 row-start-2 row-end-4 rounded-b-[8px] xs:rounded-b-[10px] sm:rounded-b-[16px] md:rounded-b-[20px] object-[center_10%]"
+                    : "col-start-2 col-end-3 row-start-3 row-end-4 rounded-b-[8px] xs:rounded-b-[10px] sm:rounded-b-[16px] md:rounded-b-[20px]"
                 }`}
                 style={{
                   animationDelay: `${index * 200}ms`,
-                  animationFillMode: 'forwards'
+                  animationFillMode: "forwards",
                 }}
                 onError={(e) => {
-                  console.log("Image failed to load:", e.target.src);
+                  e.target.src =
+                    "https://via.placeholder.com/500x750/e5e7eb/6b7280?text=No+Image";
                 }}
               />
             ))}
@@ -437,7 +403,10 @@ const SectionHome = () => {
         )}
       </section>
 
-      <section id="reason" className="mt-8 md:mt-24 flex justify-center md:justify-center">
+      <section
+        id="reason"
+        className="mt-8 md:mt-24 flex justify-center md:justify-center"
+      >
         <div className="rsn my-12 mx-4 md:my-24 md:mx-20 text-center md:text-left">
           <div className="choose text-[#1D4ED8] font-bold mb-4 md:mb-8 text-center">
             <p>WHY CHOOSE US</p>
@@ -456,7 +425,8 @@ const SectionHome = () => {
                 Guaranteed
               </div>
               <div className="benefit-text text-[#A0A3BD] text-lg text-justify leading-relaxed max-w-[250px] transition-colors duration-300 group-hover:text-gray-600">
-                Lorem ipsum dolor sit amet, consectetur adipis elit. Sit enim nec, proin faucibus nibh et sagittis a. Lacinia purus ac amet.
+                Lorem ipsum dolor sit amet, consectetur adipis elit. Sit enim
+                nec, proin faucibus nibh et sagittis a. Lacinia purus ac amet.
               </div>
             </div>
             <div className="benefit-check flex flex-col items-center text-center max-w-[280px] w-full group cursor-pointer">
@@ -471,7 +441,8 @@ const SectionHome = () => {
                 Affordable
               </div>
               <div className="benefit-text text-[#A0A3BD] text-lg text-justify leading-relaxed max-w-[250px] transition-colors duration-300 group-hover:text-gray-600">
-                Lorem ipsum dolor sit amet, consectetur adipis elit. Sit enim nec, proin faucibus nibh et sagittis a. Lacinia purus ac amet.
+                Lorem ipsum dolor sit amet, consectetur adipis elit. Sit enim
+                nec, proin faucibus nibh et sagittis a. Lacinia purus ac amet.
               </div>
             </div>
             <div className="benefit-service flex flex-col items-center text-center max-w-[280px] w-full group cursor-pointer">
@@ -482,7 +453,8 @@ const SectionHome = () => {
                 24/7 Customer Support
               </div>
               <div className="benefit-text text-[#A0A3BD] text-lg text-justify leading-relaxed max-w-[250px] transition-colors duration-300 group-hover:text-gray-600">
-                Lorem ipsum dolor sit amet, consectetur adipis elit. Sit enim nec, proin faucibus nibh et sagittis a. Lacinia purus ac amet.
+                Lorem ipsum dolor sit amet, consectetur adipis elit. Sit enim
+                nec, proin faucibus nibh et sagittis a. Lacinia purus ac amet.
               </div>
             </div>
           </div>
@@ -502,7 +474,7 @@ const SectionHome = () => {
             Exciting Movies That Should Be Watched Today
           </p>
         </div>
-        
+
         {isLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 w-full">
             {[...Array(4)].map((_, index) => (
@@ -514,7 +486,11 @@ const SectionHome = () => {
         ) : nowPlayingMovies.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 w-full">
             {nowPlayingMovies.map((movie, index) => (
-              <MovieCard key={movie.id} movie={movie} index={index} />
+              <MovieCard
+                key={movie.id || movie.Id}
+                movie={movie}
+                index={index}
+              />
             ))}
           </div>
         ) : (
@@ -522,7 +498,7 @@ const SectionHome = () => {
             <p className="text-gray-500">No movies available</p>
           </div>
         )}
-        
+
         <div className="container-movie .img-container mb-32"></div>
         {!isLoading && nowPlayingMovies.length > 0 && (
           <div className="view flex justify-center mt-8 w-full">
@@ -547,34 +523,40 @@ const SectionHome = () => {
                 Exciting Movie Coming Soon
               </p>
             </div>
-            {!isLoading && upcomingMovies.length > 0 && (
-              <div className="arrow flex justify-center items-center gap-2 mb-8 md:mb-0">
-                <button
-                  className={`arrow-left bg-[#A0A3BD] p-3 rounded-full cursor-pointer transition-all duration-300 hover:bg-[#8a8db5] hover:scale-110 ${
-                    upcomingPage === 1 ? "opacity-50 cursor-not-allowed" : ""
-                  }`}
-                  onClick={() => setUpcomingPage((prev) => Math.max(prev - 1, 1))}
-                  disabled={upcomingPage === 1}
-                >
-                  <img src="arrow-left.svg" alt="" />
-                </button>
-                <button
-                  className={`arrow-right bg-[#1D4ED8] text-white p-3 rounded-full cursor-pointer transition-all duration-300 hover:bg-blue-700 hover:scale-110 ${
-                    upcomingPage === totalUpcomingPages
-                      ? "opacity-50 cursor-not-allowed"
-                      : ""
-                  }`}
-                  onClick={() =>
-                    setUpcomingPage((prev) => Math.min(prev + 1, totalUpcomingPages))
-                  }
-                  disabled={upcomingPage === totalUpcomingPages}
-                >
-                  <img src="arrow-up.svg" alt="" />
-                </button>
-              </div>
-            )}
+            {!isLoading &&
+              upcomingMovies.length > 0 &&
+              totalUpcomingPages > 0 && (
+                <div className="arrow flex justify-center items-center gap-2 mb-8 md:mb-0">
+                  <button
+                    className={`arrow-left bg-[#A0A3BD] p-3 rounded-full cursor-pointer transition-all duration-300 hover:bg-[#8a8db5] hover:scale-110 ${
+                      upcomingPage === 1 ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
+                    onClick={() =>
+                      setUpcomingPage((prev) => Math.max(prev - 1, 1))
+                    }
+                    disabled={upcomingPage === 1}
+                  >
+                    <img src="arrow-left.svg" alt="" />
+                  </button>
+                  <button
+                    className={`arrow-right bg-[#1D4ED8] text-white p-3 rounded-full cursor-pointer transition-all duration-300 hover:bg-blue-700 hover:scale-110 ${
+                      upcomingPage === totalUpcomingPages
+                        ? "opacity-50 cursor-not-allowed"
+                        : ""
+                    }`}
+                    onClick={() =>
+                      setUpcomingPage((prev) =>
+                        Math.min(prev + 1, totalUpcomingPages)
+                      )
+                    }
+                    disabled={upcomingPage === totalUpcomingPages}
+                  >
+                    <img src="arrow-up.svg" alt="" />
+                  </button>
+                </div>
+              )}
           </div>
-          
+
           {isLoading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
               {[...Array(4)].map((_, index) => (
@@ -586,7 +568,12 @@ const SectionHome = () => {
           ) : upcomingMovies.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
               {pagedUpcomingMovies.map((movie, index) => (
-                <MovieCard key={movie.id} movie={movie} index={index} isUpcoming={true} />
+                <MovieCard
+                  key={movie.id || movie.Id}
+                  movie={movie}
+                  index={index}
+                  isUpcoming={true}
+                />
               ))}
             </div>
           ) : (

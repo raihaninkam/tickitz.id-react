@@ -1,40 +1,25 @@
 import { useState, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { Link, useNavigate } from "react-router";
+import { logout } from "../redux/slices/authSlice";
 
 const MyNavbar = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [currentUser, setCurrentUser] = useState(null);
-  const [showUserMenu, setShowUserMenu] = useState(false);
-  const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  // Check if user is logged in on component mount
-  useEffect(() => {
-    try {
-      const user = JSON.parse(localStorage.getItem('currentUser') || 'null');
-          
-      if (user) {
-        setIsLoggedIn(true);
-        setCurrentUser(user);
-      }
-    } catch (error) {
-      console.error('Error reading user session:', error);
-    }
-  }, []);
+  // ambil dari redux
+  const { token, user } = useSelector((state) => state.auth);
 
-  // Handle logout
+  const isLoggedIn = Boolean(token);
+
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
+
   const handleLogout = () => {
-    try {
-      
-      localStorage.removeItem('currentUser');
-      
-      setIsLoggedIn(false);
-      setCurrentUser(null);
-      setShowUserMenu(false);
-      navigate('/Login');
-    } catch (error) {
-      console.error('Error during logout:', error);
-    }
+    dispatch(logout());
+    setShowUserMenu(false);
+    setShowMobileMenu(false);
+    navigate("/login");
   };
 
   // Toggle user dropdown menu
@@ -47,19 +32,19 @@ const MyNavbar = () => {
     setShowMobileMenu(!showMobileMenu);
   };
 
-  // Close dropdowns when clicking outside
+  // tutup dropdown kalau klik di luar
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (!event.target.closest('.user-menu-container')) {
+      if (!event.target.closest(".user-menu-container")) {
         setShowUserMenu(false);
       }
-      if (!event.target.closest('.mobile-menu-container')) {
+      if (!event.target.closest(".mobile-menu-container")) {
         setShowMobileMenu(false);
       }
     };
 
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
   }, []);
 
   return (
@@ -68,10 +53,9 @@ const MyNavbar = () => {
         {/* Logo */}
         <div className="flex items-center">
           <Link to="/home" className="flex items-center">
-           <img src="/tickitz 1.svg" alt="" />
+            <img src="/tickitz 1.svg" alt="Tickitz Logo" />
           </Link>
         </div>
-
 
         {/* Desktop Navigation Menu */}
         <div className="hidden md:flex space-x-8">
@@ -100,7 +84,6 @@ const MyNavbar = () => {
         {/* Desktop Auth Section */}
         <div className="hidden md:flex items-center space-x-4">
           {!isLoggedIn ? (
-            // Not logged in - Show Sign In/Sign Up buttons
             <>
               <Link
                 to="/Login"
@@ -116,32 +99,38 @@ const MyNavbar = () => {
               </Link>
             </>
           ) : (
-            // Logged in - Show user profile dropdown
             <div className="relative user-menu-container">
               <button
                 onClick={toggleUserMenu}
                 className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center overflow-hidden">
-                  {currentUser?.avatar ? (
-                    <img 
-                      src={currentUser.avatar} 
-                      alt="User Avatar" 
+                  {user?.avatar ? (
+                    <img
+                      src={user.avatar}
+                      alt="User Avatar"
                       className="w-full h-full object-cover"
                     />
                   ) : (
                     <span className="text-blue-600 font-semibold text-sm">
-                      {currentUser?.name?.charAt(0) || currentUser?.email?.charAt(0) || 'U'}
+                      {user?.name?.charAt(0) || user?.email?.charAt(0) || "U"}
                     </span>
                   )}
                 </div>
-                <svg 
-                  className={`w-4 h-4 text-gray-500 transition-transform ${showUserMenu ? 'rotate-180' : ''}`}
-                  fill="none" 
-                  stroke="currentColor" 
+                <svg
+                  className={`w-4 h-4 text-gray-500 transition-transform ${
+                    showUserMenu ? "rotate-180" : ""
+                  }`}
+                  fill="none"
+                  stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
                 </svg>
               </button>
 
@@ -150,13 +139,13 @@ const MyNavbar = () => {
                 <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-2">
                   <div className="px-4 py-3 border-b border-gray-100">
                     <p className="text-sm font-medium text-gray-900">
-                      {currentUser?.name || 'User'}
+                      {user?.name || "User"}
                     </p>
                     <p className="text-sm text-gray-500 truncate">
-                      {currentUser?.email}
+                      {user?.email}
                     </p>
                   </div>
-                  
+
                   <Link
                     to="/profile"
                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
@@ -164,7 +153,7 @@ const MyNavbar = () => {
                   >
                     Profile Settings
                   </Link>
-                  
+
                   <Link
                     to="/order-history"
                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
@@ -172,17 +161,17 @@ const MyNavbar = () => {
                   >
                     My Tickets
                   </Link>
-                  
+
                   <Link
                     to="/purchase-history"
                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                    onClick={() => setShowUserMenu(false)}
+                    onClick={() => setShowMobileMenu(false)}
                   >
                     Purchase History
                   </Link>
-                  
+
                   <hr className="my-2" />
-                  
+
                   <button
                     onClick={handleLogout}
                     className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
@@ -201,8 +190,18 @@ const MyNavbar = () => {
             onClick={toggleMobileMenu}
             className="p-2 rounded-lg hover:bg-gray-50 transition-colors"
           >
-            <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            <svg
+              className="w-6 h-6 text-gray-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 6h16M4 12h16M4 18h16"
+              />
             </svg>
           </button>
 
@@ -226,7 +225,7 @@ const MyNavbar = () => {
                   Movie
                 </Link>
                 <Link
-                  to="/buy-ticket"
+                  to="/home/order"
                   className="block px-4 py-2 text-gray-800 hover:bg-gray-50 transition-colors"
                   onClick={() => setShowMobileMenu(false)}
                 >
@@ -257,29 +256,31 @@ const MyNavbar = () => {
                   <div className="px-4 py-3 border-b border-gray-100">
                     <div className="flex items-center space-x-3">
                       <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center overflow-hidden">
-                        {currentUser?.avatar ? (
-                          <img 
-                            src={currentUser.avatar} 
-                            alt="User Avatar" 
+                        {user?.avatar ? (
+                          <img
+                            src={user.avatar}
+                            alt="User Avatar"
                             className="w-full h-full object-cover"
                           />
                         ) : (
                           <span className="text-blue-600 font-semibold text-sm">
-                            {currentUser?.name?.charAt(0) || currentUser?.email?.charAt(0) || 'U'}
+                            {user?.name?.charAt(0) ||
+                              user?.email?.charAt(0) ||
+                              "U"}
                           </span>
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900 truncate">
-                          {currentUser?.name || 'User'}
+                          {user?.name || "User"}
                         </p>
                         <p className="text-sm text-gray-500 truncate">
-                          {currentUser?.email}
+                          {user?.email}
                         </p>
                       </div>
                     </div>
                   </div>
-                  
+
                   <Link
                     to="/profile"
                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
@@ -287,7 +288,7 @@ const MyNavbar = () => {
                   >
                     Profile Settings
                   </Link>
-                  
+
                   <Link
                     to="/order-history"
                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
@@ -295,17 +296,17 @@ const MyNavbar = () => {
                   >
                     My Tickets
                   </Link>
-                  
+
                   <Link
-                    to="/order-history"
+                    to="/purchase-history"
                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                     onClick={() => setShowMobileMenu(false)}
                   >
                     Purchase History
                   </Link>
-                  
+
                   <hr className="my-2" />
-                  
+
                   <button
                     onClick={handleLogout}
                     className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { useSelector } from "react-redux";
 import MyNavbar from "../components/Navbar";
 import MyFooter from "../components/Footer";
+import convertTime, { convertDate } from "../utils/timeConvert";
 
 const TicketResult = () => {
   const navigate = useNavigate();
@@ -13,15 +14,15 @@ const TicketResult = () => {
   // Fallback data jika tidak ada ticketData
   const fallbackData = {
     ticketInfo: {
-      movieTitle: 'Spider-Man: No Way Home',
-      category: 'PG-13',
-      date: '07 Jul 2024',
-      time: '2:00 PM',
+      movieTitle: "Spider-Man: No Way Home",
+      category: "PG-13",
+      date: "07 Jul 2024",
+      time: "2:00 PM",
       count: 3,
-      seats: 'C4, C5, C6',
-      total: '$30.00',
-      cinema: 'CineOne21 Cinema'
-    }
+      seats: "C4, C5, C6",
+      total: "$30.00",
+      cinema: "CineOne21 Cinema",
+    },
   };
 
   // Jika tidak ada ticketData, gunakan fallback
@@ -37,14 +38,30 @@ const TicketResult = () => {
   const handleDownloadPDF = () => {
     // Create a new window for printing/PDF generation
     const printWindow = window.open("", "_blank");
-    printWindow.document.write("<html><head><title>Ticket</title></head><body>");
-    printWindow.document.write(`<h1>Ticket for ${currentTicketData.ticketInfo.movieTitle}</h1>`);
-    printWindow.document.write(`<p>Category: ${currentTicketData.ticketInfo.category}</p>`);
-    printWindow.document.write(`<p>Date: ${currentTicketData.ticketInfo.date}</p>`);
-    printWindow.document.write(`<p>Time: ${currentTicketData.ticketInfo.time}</p>`);
-    printWindow.document.write(`<p>Count: ${currentTicketData.ticketInfo.count} pcs</p>`);
-    printWindow.document.write(`<p>Seats: ${currentTicketData.ticketInfo.seats}</p>`);
-    printWindow.document.write(`<p>Total: ${currentTicketData.ticketInfo.total}</p>`);
+    printWindow.document.write(
+      "<html><head><title>Ticket</title></head><body>"
+    );
+    printWindow.document.write(
+      `<h1>Ticket for ${currentTicketData.ticketInfo.movieTitle}</h1>`
+    );
+    printWindow.document.write(
+      `<p>Category: ${currentTicketData.ticketInfo.category}</p>`
+    );
+    printWindow.document.write(
+      `<p>Date: ${currentTicketData.ticketInfo.date}</p>`
+    );
+    printWindow.document.write(
+      `<p>Time: ${currentTicketData.ticketInfo.time}</p>`
+    );
+    printWindow.document.write(
+      `<p>Count: ${currentTicketData.ticketInfo.count} pcs</p>`
+    );
+    printWindow.document.write(
+      `<p>Seats: ${currentTicketData.ticketInfo.seats}</p>`
+    );
+    printWindow.document.write(
+      `<p>Total: ${currentTicketData.ticketInfo.total}</p>`
+    );
     printWindow.document.write("</body></html>");
     printWindow.document.close();
     setTimeout(() => {
@@ -56,7 +73,7 @@ const TicketResult = () => {
   const handleDone = () => {
     // Clear all stored data (opsional, jika pakai Redux bisa dispatch reset)
     // navigate ke home
-    navigate('/');
+    navigate("/");
   };
 
   return (
@@ -77,7 +94,7 @@ const TicketResult = () => {
                 Thank you For Purchasing
               </h1>
               <p className="text-xl lg:text-2xl font-light mb-2">
-                Your ticket for {currentTicketData.ticketInfo.movieTitle}
+                Your ticket for {currentTicketData.movieTitle}
               </p>
               <p className="text-xl lg:text-2xl font-light mb-8">
                 has been successfully booked.
@@ -105,14 +122,14 @@ const TicketResult = () => {
                   <div>
                     <p className="text-gray-500 text-sm">Movie</p>
                     <p className="font-bold">
-                      {currentTicketData.ticketInfo.movieTitle.length > 15
-                        ? currentTicketData.ticketInfo.movieTitle.substring(0, 15) + '..'
-                        : currentTicketData.ticketInfo.movieTitle}
+                      {currentTicketData.movieTitle.length > 15
+                        ? currentTicketData.movieTitle.substring(0, 15) + ".."
+                        : currentTicketData.movieTitle}
                     </p>
                   </div>
                   <div>
                     <p className="text-gray-500 text-sm">Category</p>
-                    <p className="font-bold">{currentTicketData.ticketInfo.category}</p>
+                    <p className="font-bold">PG-13</p>
                   </div>
                 </div>
 
@@ -120,11 +137,15 @@ const TicketResult = () => {
                 <div className="flex justify-between mb-6">
                   <div>
                     <p className="text-gray-500 text-sm">Date</p>
-                    <p className="font-bold">{currentTicketData.ticketInfo.date}</p>
+                    <p className="font-bold">
+                      {convertDate(currentTicketData.selectedDate)}
+                    </p>
                   </div>
                   <div>
                     <p className="text-gray-500 text-sm">Time</p>
-                    <p className="font-bold">{currentTicketData.ticketInfo.time}</p>
+                    <p className="font-bold">
+                      {convertTime(currentTicketData.selectedTime)}
+                    </p>
                   </div>
                 </div>
 
@@ -132,18 +153,22 @@ const TicketResult = () => {
                 <div className="flex justify-between mb-8">
                   <div>
                     <p className="text-gray-500 text-sm">Count</p>
-                    <p className="font-bold">{currentTicketData.ticketInfo.count} pcs</p>
+                    <p className="font-bold">
+                      {currentTicketData.totalSeats} pcs
+                    </p>
                   </div>
                   <div>
                     <p className="text-gray-500 text-sm">Seats</p>
-                    <p className="font-bold">{currentTicketData.ticketInfo.seats}</p>
+                    <p className="font-bold">{currentTicketData.seats}</p>
                   </div>
                 </div>
 
                 {/* Total */}
                 <div className="flex justify-between p-3 border border-gray-300 rounded-lg mb-6">
                   <span className="font-semibold">Total</span>
-                  <span className="font-semibold">{currentTicketData.ticketInfo.total}</span>
+                  <span className="font-semibold">
+                    {currentTicketData.totalPayment}
+                  </span>
                 </div>
 
                 {/* Buttons */}

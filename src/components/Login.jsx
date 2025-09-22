@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router";
-import { useAuth } from "../hooks/useAuth";
+// import { useAuth } from "../hooks/useAuth";
 import { useFormValidation } from "../hooks/useFormValidation";
 import { usePasswordVisibility } from "../hooks/usePasswordVisibility";
 import { loginValidationRules } from "../utils/validationRules";
@@ -7,10 +7,11 @@ import { useDispatch } from "react-redux";
 import { loadUserOrderHistory } from "../redux/slices/orderSlice";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { setCredentials } from "../redux/slices/authSlice";
 
 const Login = () => {
   const navigate = useNavigate();
-  const { loginUser } = useAuth();
+  // const { loginUser } = useAuth();
   const { showPassword, togglePassword } = usePasswordVisibility();
   const dispatch = useDispatch();
 
@@ -31,28 +32,52 @@ const Login = () => {
     navigate("/register");
   };
 
-  const handleLogin = (event) => {
+  const handleLogin = async (event) => {
     event.preventDefault();
 
     if (validate()) {
-      const result = loginUser(formData.email, formData.password);
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_BE_HOST}/auth/login`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: formData.email,
+              password: formData.password,
+            }),
+          }
+        );
 
-      if (result.success) {
-        console.log("Login berhasil:", result.user);
-        toast.success(`Selamat datang, ${result.user.email}!`);
+        const data = await response.json();
 
-        // Load order history untuk user yang baru login
-        dispatch(loadUserOrderHistory());
+        if (response.ok && data.success) {
+          toast.success(`Selamat datang!`);
 
-        reset();
+          // Simpan token + user ke redux persist
+          dispatch(
+            setCredentials({
+              token: data.token,
+              user: { email: formData.email },
+            })
+          );
 
-        // Delay navigation untuk memberi waktu toast muncul
-        setTimeout(() => {
-          navigate("/Home");
-        }, 1500);
-      } else {
-        toast.error(result.message);
-        setError("general", result.message);
+          // Load order history untuk user yang baru login
+          dispatch(loadUserOrderHistory());
+
+          reset();
+
+          // Delay navigation untuk memberi waktu toast muncul
+          setTimeout(() => {
+            navigate("/Home");
+          }, 1500);
+        } else {
+          toast.error(data.error || "Email atau password salah");
+          setError("general", data.error || "Login gagal");
+        }
+      } catch (err) {
+        toast.error("Terjadi kesalahan server");
+        console.error("Login error:", err);
       }
     } else {
       toast.error("Mohon lengkapi email dan password dengan benar.");
@@ -172,7 +197,6 @@ const Login = () => {
               )}
               <div className="flex justify-end w-full">
                 <button className="flex justify-end w-full">
-                 
                   <p
                     onClick={handleForgot}
                     className="cursor-pointer mt-2 text-sm text-blue-600 font-bold"
@@ -191,17 +215,15 @@ const Login = () => {
               Login
             </button>
             <div className="flex justify-between w-full">
-                 <p
-                    onClick={handleToRegist}
-                    className="cursor-pointer text-sm text-blue-600 font-bold mb-16 w-full flex justify-between"
-                  ><span className=" text-black">Don't have an account?</span>
-                    Register here
-                  </p>
+              <p
+                onClick={handleToRegist}
+                className="cursor-pointer text-sm text-blue-600 font-bold mb-16 w-full flex justify-between"
+              >
+                <span className=" text-black">Don't have an account?</span>
+                Register here
+              </p>
             </div>
-            
           </form>
-
-          
 
           {/* Social Login */}
           <div className="flex justify-center gap-4">

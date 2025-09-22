@@ -1,10 +1,12 @@
-import React, { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { X, Copy, Check } from "lucide-react";
 import MyNavbar from "../components/Navbar";
 import MyFooter from "../components/Footer";
 import { useNavigate } from "react-router";
-import { useSelector, useDispatch } from "react-redux";
-import { addOrderHistory, clearCurrentOrder } from "../redux/slices/orderSlice";
+import { useSelector } from "react-redux";
+// import { addOrderHistory, clearCurrentOrder } from "../redux/slices/orderSlice";
+import convertTime, { convertDate } from "../utils/timeConvert";
+import toast from "react-hot-toast";
 
 const PaymentPage = () => {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
@@ -17,12 +19,13 @@ const PaymentPage = () => {
   const [formErrors, setFormErrors] = useState({});
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const navigate = useNavigate();
-  const dispatch = useDispatch();
+  // const dispatch = useDispatch();
 
-  // Ambil data user yang sedang login dari Redux atau localStorage
-  const currentUser = useSelector(state => {
+  // Get current user
+  const currentUser = useSelector((state) => {
     try {
       return state.auth?.currentUser || state.user?.currentUser || null;
     } catch (error) {
@@ -31,10 +34,9 @@ const PaymentPage = () => {
     }
   });
 
-  // Fallback: ambil dari localStorage jika tidak ada di Redux
   const getCurrentUserFromStorage = () => {
     try {
-      const storedUser = localStorage.getItem('currentUser');
+      const storedUser = localStorage.getItem("token");
       if (storedUser) {
         return JSON.parse(storedUser);
       }
@@ -44,8 +46,8 @@ const PaymentPage = () => {
     return null;
   };
 
-  // Ambil order data dari Redux dengan error handling
-  const orderData = useSelector(state => {
+  // Get order data from Redux
+  const orderData = useSelector((state) => {
     try {
       return state.order?.currentOrder || null;
     } catch (error) {
@@ -54,12 +56,11 @@ const PaymentPage = () => {
     }
   });
 
-  // Fix: Set email otomatis dari user yang login
+  // Set user data in form
   useEffect(() => {
     const user = currentUser || getCurrentUserFromStorage();
-    
     if (user) {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         email: user.email || "",
         fullName: user.name || user.fullName || "",
@@ -68,9 +69,8 @@ const PaymentPage = () => {
     }
   }, [currentUser]);
 
-  // Fix: Perbaiki useEffect dengan dependency yang tepat
+  // Check if order data exists
   useEffect(() => {
-    // Simulasi loading untuk menghindari flash
     const timer = setTimeout(() => {
       if (!orderData) {
         console.warn("No order data found, redirecting to order page");
@@ -84,26 +84,14 @@ const PaymentPage = () => {
   }, [orderData, navigate]);
 
   const paymentMethods = [
-    {
-      id: "google-pay",
-      img: "/logos_google-pay.svg",
-      name: "Google Pay",
-    },
-    {
-      id: "visa",
-      img: "/logos_visa.svg",
-      name: "Visa",
-    },
+    { id: "google-pay", img: "/logos_google-pay.svg", name: "Google Pay" },
+    { id: "visa", img: "/logos_visa.svg", name: "Visa" },
     {
       id: "gopay",
       img: "/Logo GoPay (SVG-240p) - FileVector69 1.svg",
       name: "GoPay",
     },
-    {
-      id: "paypal",
-      img: "/logos_paypal.png",
-      name: "PayPal",
-    },
+    { id: "paypal", img: "/logos_paypal.png", name: "PayPal" },
     {
       id: "dana",
       img: "/Logo DANA (PNG-240p) - FileVector69 1.svg",
@@ -119,14 +107,24 @@ const PaymentPage = () => {
       img: "/Bank BRI (Bank Rakyat Indonesia) Logo (SVG-240p) - FileVector69 1.svg",
       name: "BRI",
     },
-    {
-      id: "ovo",
-      img: "/ovo.svg",
-      name: "OVO",
-    },
+    { id: "ovo", img: "/ovo.svg", name: "OVO" },
   ];
 
-  // Fallback booking details dengan null checks
+  // Mapping payment methods to backend IDs
+  const getPaymentMethodId = (method) => {
+    const paymentMap = {
+      "google-pay": 1,
+      visa: 2,
+      gopay: 3,
+      paypal: 4,
+      dana: 5,
+      bca: 6,
+      bri: 7,
+      ovo: 8,
+    };
+    return paymentMap[method] || 1;
+  };
+
   const fallbackBookingDetails = {
     dateTime: "Tuesday, 07 July 2020 at 02:00pm",
     movieTitle: "Spider-Man: Homecoming",
@@ -135,18 +133,19 @@ const PaymentPage = () => {
     totalPayment: "$30.00",
   };
 
-  // Fix: Perbaiki logic untuk booking details
   const bookingDetails = useMemo(() => {
     if (!orderData) return fallbackBookingDetails;
-    
+
     return {
-      dateTime: `${orderData.selectedDate || 'Unknown Date'} at ${orderData.selectedTime || 'Unknown Time'}`,
+      dateTime: `${convertDate(orderData.selectedDate) || "Unknown Date"} at ${
+        convertTime(orderData.selectedTime) || "Unknown Time"
+      }`,
       movieTitle: orderData.movieTitle || "Unknown Movie",
       cinemaName: orderData.selectedCinema?.name || "Unknown Cinema",
       location: orderData.selectedLocation || "Unknown Location",
       tickets: `${orderData.totalSeats || 0} pieces`,
       selectedSeats: orderData.seats?.join(", ") || "None",
-      totalPayment: `${orderData.totalPayment || 0}.00`,
+      totalPayment: `$${orderData.totalPayment || 0}.00`,
       ticketPrice: orderData.ticketPrice || 10,
     };
   }, [orderData]);
@@ -203,25 +202,23 @@ const PaymentPage = () => {
       if (navigator.clipboard && window.isSecureContext) {
         await navigator.clipboard.writeText(accountNumber);
       } else {
-        // Fallback untuk environment yang tidak support clipboard API
         const textArea = document.createElement("textarea");
         textArea.value = accountNumber;
         document.body.appendChild(textArea);
         textArea.focus();
         textArea.select();
-        document.execCommand('copy');
+        document.execCommand("copy");
         document.body.removeChild(textArea);
       }
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error("Failed to copy: ", err);
-      // Manual fallback
       alert(`Account Number: ${accountNumber}`);
     }
   };
 
-  // Fix: Perbaiki event listeners
+  // Handle escape key
   useEffect(() => {
     const handleEscape = (e) => {
       if (e.key === "Escape" && showModal) {
@@ -242,44 +239,86 @@ const PaymentPage = () => {
     };
   }, [showModal]);
 
-  // Fix: Perbaiki fungsi handleModalPayment
-  const handleModalPayment = (status) => {
+  const token = useSelector((state) => state.auth.token);
+  // API call to create order
+  const createOrderAPI = async (orderPayload) => {
     try {
-      if (!orderData) {
-        console.error("No order data available");
-        navigate('/home/order');
-        return;
+      // Get token from localStorage
+
+      if (!token) {
+        throw new Error("Authentication token not found");
       }
 
-      const ticketData = {
-        ...orderData,
-        personalInfo: formData,
-        paymentMethod: selectedPaymentMethod,
-        paymentStatus: status,
-        paymentDate: new Date().toISOString(),
-        ticketInfo: {
-          movieTitle: orderData.movieTitle || "Unknown Movie",
-          category: "PG-13",
-          date: orderData.selectedDate || "Unknown Date",
-          time: orderData.selectedTime || "Unknown Time",
-          count: orderData.totalSeats || 0,
-          seats: orderData.seats?.join(", ") || "None",
-          total: orderData.totalPayment ? `$${orderData.totalPayment}.00` : "$0.00",
-          cinema: orderData.selectedCinema?.name || "Unknown Cinema",
-          location: orderData.selectedLocation || "Unknown Location",
+      const response = await fetch(`${import.meta.env.VITE_BE_HOST}/orders`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-      };
+        body: JSON.stringify(orderPayload),
+      });
 
-      // Simpan ke Redux
-      dispatch(addOrderHistory(ticketData));
-      dispatch(clearCurrentOrder());
+      const result = await response.json();
 
-      // Redirect ke halaman ticket
-      navigate("/home/ticket", { replace: true });
-      closeModal();
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to create order");
+      }
+
+      return result;
     } catch (error) {
-      console.error("Error processing payment:", error);
-      alert("An error occurred while processing payment. Please try again.");
+      console.error("API Error:", error);
+      throw error;
+    }
+  };
+
+  // Handle modal payment - now with backend integration
+  const handleModalPayment = async (status) => {
+    if (isProcessing) return;
+    setIsProcessing(true);
+
+    try {
+      if (status === "completed") {
+        const orderPayload = {
+          price: parseFloat(orderData.totalPayment) || 0,
+          payment_id: getPaymentMethodId(selectedPaymentMethod),
+          now_showing_id:
+            parseInt(
+              orderData.selectedCinema?.id || orderData.selectedShowingId
+            ) || 1,
+          cinema_id: 0,
+          seats_map: Array.isArray(orderData.seats) ? orderData.seats : [],
+        };
+
+        console.log("=== FRONTEND DEBUG ===");
+        console.log("Order Data:", orderData);
+        console.log("Form Data:", formData);
+        console.log("Selected Payment Method:", selectedPaymentMethod);
+        console.log("Final Payload:", JSON.stringify(orderPayload, null, 2));
+        console.log("Payload Types:", {
+          price: typeof orderPayload.price,
+          payment_id: typeof orderPayload.payment_id,
+          now_showing_id: typeof orderPayload.now_showing_id,
+          cinema_id: typeof orderPayload.cinema_id,
+          seats_map: Array.isArray(orderPayload.seats_map),
+          seats_length: orderPayload.seats_map?.length,
+        });
+
+        const apiResponse = await createOrderAPI(orderPayload);
+        console.log("API Response:", apiResponse);
+
+        toast.success("Order berhasil dibuat!");
+
+        navigate("/home/ticket", { replace: true });
+        closeModal();
+      }
+    } catch (error) {
+      console.error("=== ERROR DEBUG ===");
+      console.error("Error:", error);
+      console.error("Error message:", error.message);
+      alert(`Payment failed: ${error.message}`);
+    } finally {
+      setIsProcessing(false);
+      toast.success("Order berhasil dibuat!");
     }
   };
 
@@ -417,28 +456,28 @@ const PaymentPage = () => {
                 />
               </div>
 
-             <div className="relative">
-  <label className="block text-sm text-gray-600 mb-2">
-    Phone Number
-  </label>
-  <div className="relative">
-    {/* Prefix +62 */}
-    <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-700">
-      +62
-    </span>
-    <input
-      type="text"
-      name="phoneNumber"
-      value={formData.phoneNumber}
-      onChange={handleInputChange}
-      placeholder="81445687121"
-      className={`w-full pl-14 pr-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent ${
-        formErrors.phoneNumber ? "border-red-500" : "border-gray-300"
-      }`}
-    />
-  </div>
-</div>
-
+              <div className="relative">
+                <label className="block text-sm text-gray-600 mb-2">
+                  Phone Number
+                </label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-700">
+                    +62
+                  </span>
+                  <input
+                    type="text"
+                    name="phoneNumber"
+                    value={formData.phoneNumber}
+                    onChange={handleInputChange}
+                    placeholder="81445687121"
+                    className={`w-full pl-14 pr-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent ${
+                      formErrors.phoneNumber
+                        ? "border-red-500"
+                        : "border-gray-300"
+                    }`}
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
@@ -499,6 +538,7 @@ const PaymentPage = () => {
             <button
               onClick={closeModal}
               className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+              disabled={isProcessing}
             >
               <X className="w-6 h-6" />
             </button>
@@ -518,6 +558,7 @@ const PaymentPage = () => {
                       ? "bg-green-500 text-white border-green-500"
                       : "border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white"
                   }`}
+                  disabled={isProcessing}
                 >
                   {copied ? (
                     <>
@@ -552,13 +593,15 @@ const PaymentPage = () => {
               <div className="space-y-3">
                 <button
                   onClick={() => handleModalPayment("completed")}
-                  className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                  disabled={isProcessing}
+                  className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Check Payment
+                  {isProcessing ? "Processing..." : "Check Payment"}
                 </button>
                 <button
                   onClick={() => handleModalPayment("not paid")}
-                  className="w-full text-blue-600 py-3 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
+                  disabled={isProcessing}
+                  className="w-full text-blue-600 py-3 rounded-lg font-semibold hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Pay Later
                 </button>

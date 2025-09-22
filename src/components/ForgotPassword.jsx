@@ -1,157 +1,166 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
 
-
 const ForgotPassword = () => {
   const [formData, setFormData] = useState({
     email: "",
+    oldPassword: "",
     newPassword: "",
+    confirmPassword: "",
   });
 
   const [errors, setErrors] = useState({});
-  const [showPassword, setShowPassword] = useState(false);
-  const [message, setMessage] = useState({ type: '', text: '' });
+  const [showPassword, setShowPassword] = useState({
+    oldPassword: false,
+    newPassword: false,
+    confirmPassword: false,
+  });
+  const [message, setMessage] = useState({ type: "", text: "" });
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     // Clear error when user starts typing
     if (errors[e.target.name]) {
-      setErrors({ ...errors, [e.target.name]: '' });
+      setErrors({ ...errors, [e.target.name]: "" });
     }
   };
 
-  const togglePassword = () => {
-    setShowPassword(!showPassword);
+  const togglePassword = (field) => {
+    setShowPassword({
+      ...showPassword,
+      [field]: !showPassword[field],
+    });
   };
 
   const validate = () => {
     const newErrors = {};
     if (!formData.email) {
       newErrors.email = "Email is required";
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = "Email is invalid";
+    }
+    if (!formData.oldPassword) {
+      newErrors.oldPassword = "Old password is required";
     }
     if (!formData.newPassword) {
       newErrors.newPassword = "New password is required";
     } else if (formData.newPassword.length < 6) {
       newErrors.newPassword = "Password must be at least 6 characters";
     }
+    if (!formData.confirmPassword) {
+      newErrors.confirmPassword = "Please confirm your new password";
+    } else if (formData.newPassword !== formData.confirmPassword) {
+      newErrors.confirmPassword = "Passwords do not match";
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const changePassword = (email, newPassword) => {
+  const changePassword = async (email, oldPassword, newPassword) => {
+    setIsLoading(true);
     try {
-      // Get registered users from localStorage
-      const registeredUsersData = localStorage.getItem('registeredUsers');
-      
-      if (!registeredUsersData) {
-        return {
-          success: false,
-          message: "No registered users found"
-        };
-      }
-
-      let registeredUsers = JSON.parse(registeredUsersData);
-      
-      // Find user by email
-      const userIndex = registeredUsers.findIndex(user => user.email === email);
-      
-      if (userIndex === -1) {
-        return {
-          success: false,
-          message: "Email not found in our records"
-        };
-      }
-
-      // Update user password
-      registeredUsers[userIndex].password = newPassword;
-      
-      // Save back to localStorage
-      localStorage.setItem('registeredUsers', JSON.stringify(registeredUsers));
-      
-      // Also update current user if it's the same user
-      const currentUserData = localStorage.getItem('user');
-      if (currentUserData) {
-        const currentUser = JSON.parse(currentUserData);
-        if (currentUser.email === email) {
-          currentUser.password = newPassword;
-          localStorage.setItem('user', JSON.stringify(currentUser));
+      const response = await fetch(
+        `${import.meta.env.VITE_BE_HOST}/profile/change-password`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: email,
+            old_password: oldPassword,
+            new_password: newPassword,
+            // Hapus confirm_password karena tidak digunakan di backend
+          }),
         }
+      );
+
+      const data = await response.json();
+
+      if (response.ok) {
+        return {
+          success: true,
+          message: data.message || "Password successfully updated!",
+        };
+      } else {
+        return {
+          success: false,
+          message: data.error || "Failed to change password",
+        };
       }
-
-      return {
-        success: true,
-        message: "Password successfully updated!"
-      };
-
     } catch (error) {
-      console.error('Error changing password:', error);
+      console.error("Error changing password:", error);
       return {
         success: false,
-        message: "An error occurred while changing password"
+        message: "An error occurred while changing password",
       };
+    } finally {
+      setIsLoading(false);
     }
   };
+
   const navigate = useNavigate();
-  const handleSubmit = () => {
-    setMessage({ type: '', text: '' });
+
+  const handleSubmit = async () => {
+    setMessage({ type: "", text: "" });
 
     if (!validate()) {
       setMessage({
-        type: 'error',
-        text: 'Please fill all fields correctly.'
+        type: "error",
+        text: "Please fill all fields correctly.",
       });
       return;
     }
 
-    const result = changePassword(formData.email, formData.newPassword);
- 
-    
+    const result = await changePassword(
+      formData.email,
+      formData.oldPassword,
+      formData.newPassword
+    );
+
     if (result.success) {
       setMessage({
-        type: 'success',
-        text: result.message
+        type: "success",
+        text: result.message,
       });
       // Reset form
-      setFormData({ email: '', newPassword: '' });
+      setFormData({
+        email: "",
+        oldPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
       // Auto redirect simulation
       setTimeout(() => {
-        setMessage({
-          type: 'info',
-          text: 'Redirecting to login...'
-        });
-        navigate('/login')  
+        navigate("/login");
       }, 2000);
     } else {
       setMessage({
-        type: 'error',
-        text: result.message
+        type: "error",
+        text: result.message,
       });
     }
   };
 
   const handleBackToLogin = () => {
     // Reset form and messages
-    setFormData({ email: '', newPassword: '' });
+    setFormData({
+      email: "",
+      oldPassword: "",
+      newPassword: "",
+      confirmPassword: "",
+    });
     setErrors({});
-    setMessage({ type: '', text: '' });
-    alert('Redirecting to login page...');
-  };
-
-  // Debug function to show current localStorage data
-  const showStorageData = () => {
-    const data = localStorage.getItem('registeredUsers');
-    if (data) {
-      console.log('Current registered users:', JSON.parse(data));
-    } else {
-      console.log('No registered users found');
-    }
+    setMessage({ type: "", text: "" });
+    navigate("/login");
   };
 
   return (
     <div className="min-h-screen bg-[url(/sign-up.svg)] overflow-y-hidden bg-cover bg-center p-4">
       {/* Logo */}
       <div className="flex justify-center pt-8 pb-4">
-        <img src="/tickitz white.svg" alt="" />
+        <img src="/tickitz white.svg" alt="Tickitz Logo" />
       </div>
 
       {/* Main Container */}
@@ -160,25 +169,29 @@ const ForgotPassword = () => {
           {/* Header */}
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-gray-800 mb-2">
-              Reset Password 🔐
+              Change Password 🔐
             </h1>
             <p className="text-gray-500">
-              Enter your email and new password to reset your account
+              Enter your email and passwords to change your account password
             </p>
           </div>
 
           {/* Message Display */}
           {message.text && (
-            <div className={`mb-4 p-3 rounded-md text-sm ${
-              message.type === 'success' ? 'bg-green-100 text-green-800 border border-green-300' :
-              message.type === 'error' ? 'bg-red-100 text-red-800 border border-red-300' :
-              'bg-blue-100 text-blue-800 border border-blue-300'
-            }`}>
+            <div
+              className={`mb-4 p-3 rounded-md text-sm ${
+                message.type === "success"
+                  ? "bg-green-100 text-green-800 border border-green-300"
+                  : message.type === "error"
+                  ? "bg-red-100 text-red-800 border border-red-300"
+                  : "bg-blue-100 text-blue-800 border border-blue-300"
+              }`}
+            >
               {message.text}
             </div>
           )}
 
-          {/* Forgot Password Form */}
+          {/* Change Password Form */}
           <div>
             {/* Email Field */}
             <div className="mb-4">
@@ -196,7 +209,9 @@ const ForgotPassword = () => {
                 value={formData.email}
                 onChange={handleChange}
                 className={`w-full px-4 py-3 border rounded-md text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.email ? "border-red-300 focus:border-red-500" : "border-gray-300"
+                  errors.email
+                    ? "border-red-300 focus:border-red-500"
+                    : "border-gray-300"
                 }`}
               />
               {errors.email && (
@@ -204,8 +219,71 @@ const ForgotPassword = () => {
               )}
             </div>
 
+            {/* Old Password Field */}
+            <div className="mb-4">
+              <label
+                htmlFor="oldPassword"
+                className="block mb-2 text-gray-700 font-medium"
+              >
+                Old Password
+              </label>
+              <div
+                className={`flex items-center border rounded-md transition-colors focus-within:ring-2 focus-within:ring-blue-500 ${
+                  errors.oldPassword ? "border-red-300" : "border-gray-300"
+                }`}
+              >
+                <input
+                  type={showPassword.oldPassword ? "text" : "password"}
+                  id="oldPassword"
+                  name="oldPassword"
+                  placeholder="Enter your old password"
+                  value={formData.oldPassword}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 text-sm border-none outline-none rounded-l-md"
+                />
+                <button
+                  type="button"
+                  onClick={() => togglePassword("oldPassword")}
+                  className="px-3 py-3 text-gray-500 hover:text-gray-700 transition-colors"
+                >
+                  {showPassword.oldPassword ? (
+                    <svg
+                      className="w-5 h-5"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z"
+                        clipRule="evenodd"
+                      />
+                      <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z" />
+                    </svg>
+                  ) : (
+                    <svg
+                      className="w-5 h-5"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                      <path
+                        fillRule="evenodd"
+                        d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  )}
+                </button>
+              </div>
+              {errors.oldPassword && (
+                <p className="text-red-500 text-sm mt-1">
+                  {errors.oldPassword}
+                </p>
+              )}
+            </div>
+
             {/* New Password Field */}
-            <div className="mb-6">
+            <div className="mb-4">
               <label
                 htmlFor="newPassword"
                 className="block mb-2 text-gray-700 font-medium"
@@ -218,7 +296,7 @@ const ForgotPassword = () => {
                 }`}
               >
                 <input
-                  type={showPassword ? "text" : "password"}
+                  type={showPassword.newPassword ? "text" : "password"}
                   id="newPassword"
                   name="newPassword"
                   placeholder="Enter your new password"
@@ -228,11 +306,15 @@ const ForgotPassword = () => {
                 />
                 <button
                   type="button"
-                  onClick={togglePassword}
+                  onClick={() => togglePassword("newPassword")}
                   className="px-3 py-3 text-gray-500 hover:text-gray-700 transition-colors"
                 >
-                  {showPassword ? (
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  {showPassword.newPassword ? (
+                    <svg
+                      className="w-5 h-5"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
                       <path
                         fillRule="evenodd"
                         d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z"
@@ -241,7 +323,11 @@ const ForgotPassword = () => {
                       <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z" />
                     </svg>
                   ) : (
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <svg
+                      className="w-5 h-5"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
                       <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
                       <path
                         fillRule="evenodd"
@@ -259,13 +345,81 @@ const ForgotPassword = () => {
               )}
             </div>
 
+            {/* Confirm Password Field */}
+            <div className="mb-6">
+              <label
+                htmlFor="confirmPassword"
+                className="block mb-2 text-gray-700 font-medium"
+              >
+                Confirm New Password
+              </label>
+              <div
+                className={`flex items-center border rounded-md transition-colors focus-within:ring-2 focus-within:ring-blue-500 ${
+                  errors.confirmPassword ? "border-red-300" : "border-gray-300"
+                }`}
+              >
+                <input
+                  type={showPassword.confirmPassword ? "text" : "password"}
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  placeholder="Confirm your new password"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 text-sm border-none outline-none rounded-l-md"
+                />
+                <button
+                  type="button"
+                  onClick={() => togglePassword("confirmPassword")}
+                  className="px-3 py-3 text-gray-500 hover:text-gray-700 transition-colors"
+                >
+                  {showPassword.confirmPassword ? (
+                    <svg
+                      className="w-5 h-5"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z"
+                        clipRule="evenodd"
+                      />
+                      <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z" />
+                    </svg>
+                  ) : (
+                    <svg
+                      className="w-5 h-5"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                      <path
+                        fillRule="evenodd"
+                        d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  )}
+                </button>
+              </div>
+              {errors.confirmPassword && (
+                <p className="text-red-500 text-sm mt-1">
+                  {errors.confirmPassword}
+                </p>
+              )}
+            </div>
+
             {/* Submit Button */}
             <button
               type="button"
               onClick={handleSubmit}
-              className="w-full py-3 bg-blue-600 text-white rounded-md text-base font-semibold transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 mb-4"
+              disabled={isLoading}
+              className={`w-full py-3 text-white rounded-md text-base font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 mb-4 ${
+                isLoading
+                  ? "bg-blue-400 cursor-not-allowed"
+                  : "bg-blue-600 hover:bg-blue-700"
+              }`}
             >
-              Reset Password
+              {isLoading ? "Processing..." : "Change Password"}
             </button>
           </div>
 
@@ -280,17 +434,6 @@ const ForgotPassword = () => {
                 Login here
               </button>
             </p>
-          </div>
-
-          {/* Debug Button (for testing) */}
-          <div className="mt-4 pt-4 border-t border-gray-200">
-            <button
-              type="button"
-              onClick={showStorageData}
-              className="w-full py-2 bg-gray-100 text-gray-700 rounded-md text-sm hover:bg-gray-200 transition-colors"
-            >
-              Show Storage Data (Console)
-            </button>
           </div>
         </div>
       </main>

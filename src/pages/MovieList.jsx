@@ -1,40 +1,22 @@
-import { useState } from "react";
-import { ChevronDown, Eye, Edit2, Trash2, Plus, ArrowLeft, X, Save } from "lucide-react";
+import { useState, useEffect } from "react";
+import {
+  ChevronDown,
+  Eye,
+  Edit2,
+  Trash2,
+  Plus,
+  ArrowLeft,
+  X,
+  Save,
+} from "lucide-react";
 import NavbarAdmin from "../components/NavbarAdmin";
 import { useNavigate } from "react-router";
+import { toast } from "react-toastify";
+import { useSelector } from "react-redux";
 
 const MovieList = () => {
-  const [movies, setMovies] = useState([
-    {
-      id: 1,
-      thumbnail: "/api/placeholder/60/60",
-      movieName: "Spiderman HomeComing",
-      category: "Action, Adventure",
-      releasedDate: "2023-07-05",
-      duration: "2 Hours 15 Minute",
-      directorName: "Jon Watts",
-      cast: "Tom Holland, Michael Keaton, Robert Downey Jr.",
-      synopsis: "Thrilled by his experience with the Avengers, Peter returns home, where he lives with his Aunt May.",
-      location: "Purwokerto, Bandung, Bekasi",
-      showDate: "2023-07-07",
-      showTime: "08:30am",
-    },
-    {
-      id: 2,
-      thumbnail: "/api/placeholder/60/60",
-      movieName: "Avengers End Game",
-      category: "Sci-fi, Adventure",
-      releasedDate: "2023-06-10",
-      duration: "2 Hours 15 Minute",
-      directorName: "Anthony Russo",
-      cast: "Robert Downey Jr., Chris Evans, Mark Ruffalo",
-      synopsis: "After the devastating events of Avengers: Infinity War, the universe is in ruins.",
-      location: "Jakarta, Surabaya",
-      showDate: "2023-06-14",
-      showTime: "02:00pm",
-    },
-  ]);
-
+  const [movies, setMovies] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [viewingMovie, setViewingMovie] = useState(null);
   const [editingMovie, setEditingMovie] = useState(null);
   const [editForm, setEditForm] = useState({});
@@ -43,40 +25,164 @@ const MovieList = () => {
   const [showMonthDropdown, setShowMonthDropdown] = useState(false);
 
   const months = [
-    "January 2023", "February 2023", "March 2023", "April 2023",
-    "May 2023", "June 2023", "July 2023", "August 2023",
-    "September 2023", "October 2023", "November 2023", "December 2023",
+    "January 2023",
+    "February 2023",
+    "March 2023",
+    "April 2023",
+    "May 2023",
+    "June 2023",
+    "July 2023",
+    "August 2023",
+    "September 2023",
+    "October 2023",
+    "November 2023",
+    "December 2023",
   ];
 
   const itemsPerPage = 5;
   const totalPages = Math.ceil(movies.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const currentMovies = movies.slice(startIndex, startIndex + itemsPerPage);
+  const { token } = useSelector((state) => state.auth);
 
   const navigate = useNavigate();
 
+  // Fetch all movies from backend
+  const fetchMovies = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_BE_HOST}/admin/movies`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        // Transform backend data to match frontend structure
+        const transformedMovies = data.data.map((movie) => ({
+          id: movie.id,
+          thumbnail: movie.poster_image || "/api/placeholder/60/60",
+          movieName: movie.title,
+          category: movie.genres || "N/A",
+          releasedDate: movie.release_date
+            ? new Date(movie.release_date).toISOString().split("T")[0]
+            : "",
+          duration: movie.duration_minutes
+            ? `${Math.floor(movie.duration_minutes / 60)} Hours ${
+                movie.duration_minutes % 60
+              } Minutes`
+            : "N/A",
+          directorName: movie.director_name || "N/A",
+          cast: "N/A", // This field doesn't exist in your backend model
+          synopsis: movie.synopsis || "N/A",
+          location: "N/A",
+          showDate: "N/A",
+          showTime: "N/A", // This field doesn't exist in your backend model
+          // Backend specific fields
+          directorsId: movie.directors_id,
+          rating: movie.rating,
+          bgPath: movie.bg_path,
+          durationMinutes: movie.duration_minutes,
+        }));
+
+        setMovies(transformedMovies);
+      } else {
+        toast.error(data.error || "Failed to fetch movies");
+      }
+    } catch (error) {
+      console.error("Fetch movies error:", error);
+      toast.error("Terjadi kesalahan server");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load movies on component mount
+  useEffect(() => {
+    fetchMovies();
+  }, []);
+
   const handleAddNew = () => {
-    navigate('/movieForm')
+    navigate("/movieForm");
   };
 
   const handleEdit = (movie) => {
     setEditingMovie(movie);
-    setEditForm({ ...movie });
+    setEditForm({
+      title: movie.movieName,
+      synopsis: movie.synopsis,
+      duration_minutes: movie.durationMinutes,
+      release_date: movie.releasedDate,
+      poster_image: movie.thumbnail,
+      directors_id: movie.directorsId,
+      rating: movie.rating,
+      bg_path: movie.bgPath,
+    });
   };
 
-  const handleSaveEdit = () => {
-    if (!editForm.movieName || !editForm.category || !editForm.releasedDate) {
-      alert("Please fill in all required fields");
+  const handleSaveEdit = async () => {
+    if (!editForm.title || !editForm.synopsis || !editForm.release_date) {
+      toast.error("Please fill in all required fields");
       return;
     }
 
-    setMovies(prev => prev.map(movie => 
-      movie.id === editingMovie.id ? { ...editForm } : movie
-    ));
-    
-    setEditingMovie(null);
-    setEditForm({});
-    alert("Movie updated successfully!");
+    setLoading(true);
+    try {
+      // Create update payload with only changed fields
+      const updatePayload = {};
+
+      if (editForm.title !== editingMovie.movieName)
+        updatePayload.title = editForm.title;
+      if (editForm.synopsis !== editingMovie.synopsis)
+        updatePayload.synopsis = editForm.synopsis;
+      if (editForm.duration_minutes !== editingMovie.durationMinutes)
+        updatePayload.duration_minutes = editForm.duration_minutes;
+      if (editForm.release_date !== editingMovie.releasedDate)
+        updatePayload.release_date = editForm.release_date;
+      if (editForm.poster_image !== editingMovie.thumbnail)
+        updatePayload.poster_image = editForm.poster_image;
+      if (editForm.directors_id !== editingMovie.directorsId)
+        updatePayload.directors_id = editForm.directors_id;
+      if (editForm.rating !== editingMovie.rating)
+        updatePayload.rating = editForm.rating;
+      if (editForm.bg_path !== editingMovie.bgPath)
+        updatePayload.bg_path = editForm.bg_path;
+
+      const response = await fetch(
+        `${import.meta.env.VITE_BE_HOST}/admin/movies/${editingMovie.id}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(updatePayload),
+        }
+      );
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        toast.success("Movie updated successfully!");
+        await fetchMovies(); // Refresh the movie list
+        setEditingMovie(null);
+        setEditForm({});
+      } else {
+        toast.error(data.error || "Failed to update movie");
+      }
+    } catch (error) {
+      console.error("Update movie error:", error);
+      toast.error("Terjadi kesalahan server");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCancelEdit = () => {
@@ -84,16 +190,46 @@ const MovieList = () => {
     setEditForm({});
   };
 
-  const handleDelete = (id) => {
-    const movieToDelete = movies.find(movie => movie.id === id);
-    if (window.confirm(`Are you sure you want to delete "${movieToDelete?.movieName}"?`)) {
-      setMovies(prev => prev.filter(movie => movie.id !== id));
-      alert("Movie deleted successfully!");
-      
-      // Adjust current page if necessary
-      const newTotalPages = Math.ceil((movies.length - 1) / itemsPerPage);
-      if (currentPage > newTotalPages && newTotalPages > 0) {
-        setCurrentPage(newTotalPages);
+  const handleDelete = async (id) => {
+    const movieToDelete = movies.find((movie) => movie.id === id);
+    if (
+      window.confirm(
+        `Are you sure you want to delete "${movieToDelete?.movieName}"?`
+      )
+    ) {
+      setLoading(true);
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_BE_HOST}/admin/movies/delete/${id}`,
+          {
+            method: "DELETE",
+            headers: {
+              "Content-Type": "application/json",
+              // Add authorization header if needed
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          toast.success("Movie deleted successfully!");
+          await fetchMovies(); // Refresh the movie list
+
+          // Adjust current page if necessary
+          const newTotalPages = Math.ceil((movies.length - 1) / itemsPerPage);
+          if (currentPage > newTotalPages && newTotalPages > 0) {
+            setCurrentPage(newTotalPages);
+          }
+        } else {
+          toast.error(data.error || "Failed to delete movie");
+        }
+      } catch (error) {
+        console.error("Delete movie error:", error);
+        toast.error("Terjadi kesalahan server");
+      } finally {
+        setLoading(false);
       }
     }
   };
@@ -107,9 +243,9 @@ const MovieList = () => {
   };
 
   const handleFormChange = (field, value) => {
-    setEditForm(prev => ({
+    setEditForm((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
   };
 
@@ -126,6 +262,7 @@ const MovieList = () => {
             <button
               onClick={handleCancelEdit}
               className="text-gray-400 hover:text-gray-600"
+              disabled={loading}
             >
               <X className="w-6 h-6" />
             </button>
@@ -136,27 +273,34 @@ const MovieList = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Movie Name *
+                  Movie Title *
                 </label>
                 <input
                   type="text"
-                  value={editForm.movieName || ''}
-                  onChange={(e) => handleFormChange('movieName', e.target.value)}
+                  value={editForm.title || ""}
+                  onChange={(e) => handleFormChange("title", e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Enter movie name"
+                  placeholder="Enter movie title"
+                  disabled={loading}
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Category *
+                  Duration (Minutes) *
                 </label>
                 <input
-                  type="text"
-                  value={editForm.category || ''}
-                  onChange={(e) => handleFormChange('category', e.target.value)}
+                  type="number"
+                  value={editForm.duration_minutes || ""}
+                  onChange={(e) =>
+                    handleFormChange(
+                      "duration_minutes",
+                      parseInt(e.target.value)
+                    )
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="e.g., Action, Adventure"
+                  placeholder="e.g., 120"
+                  disabled={loading}
                 />
               </div>
 
@@ -166,99 +310,92 @@ const MovieList = () => {
                 </label>
                 <input
                   type="date"
-                  value={editForm.releasedDate || ''}
-                  onChange={(e) => handleFormChange('releasedDate', e.target.value)}
+                  value={editForm.release_date || ""}
+                  onChange={(e) =>
+                    handleFormChange("release_date", e.target.value)
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={loading}
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Duration
+                  Director ID
                 </label>
                 <input
-                  type="text"
-                  value={editForm.duration || ''}
-                  onChange={(e) => handleFormChange('duration', e.target.value)}
+                  type="number"
+                  value={editForm.directors_id || ""}
+                  onChange={(e) =>
+                    handleFormChange("directors_id", parseInt(e.target.value))
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="e.g., 2 Hours 15 Minutes"
+                  placeholder="Enter director ID"
+                  disabled={loading}
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Director Name
+                  Rating
                 </label>
                 <input
-                  type="text"
-                  value={editForm.directorName || ''}
-                  onChange={(e) => handleFormChange('directorName', e.target.value)}
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  max="10"
+                  value={editForm.rating || ""}
+                  onChange={(e) =>
+                    handleFormChange("rating", parseFloat(e.target.value))
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Enter director name"
+                  placeholder="e.g., 8.5"
+                  disabled={loading}
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Show Date
+                  Poster Image URL
                 </label>
                 <input
-                  type="date"
-                  value={editForm.showDate || ''}
-                  onChange={(e) => handleFormChange('showDate', e.target.value)}
+                  type="url"
+                  value={editForm.poster_image || ""}
+                  onChange={(e) =>
+                    handleFormChange("poster_image", e.target.value)
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Show Time
-                </label>
-                <input
-                  type="time"
-                  value={editForm.showTime?.replace(/am|pm/i, '') || ''}
-                  onChange={(e) => handleFormChange('showTime', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Location
-                </label>
-                <input
-                  type="text"
-                  value={editForm.location || ''}
-                  onChange={(e) => handleFormChange('location', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="e.g., Jakarta, Surabaya"
+                  placeholder="https://example.com/poster.jpg"
+                  disabled={loading}
                 />
               </div>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Cast
+                Background Path
               </label>
               <input
                 type="text"
-                value={editForm.cast || ''}
-                onChange={(e) => handleFormChange('cast', e.target.value)}
+                value={editForm.bg_path || ""}
+                onChange={(e) => handleFormChange("bg_path", e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="e.g., Actor 1, Actor 2, Actor 3"
+                placeholder="Background image path"
+                disabled={loading}
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Synopsis
+                Synopsis *
               </label>
               <textarea
-                value={editForm.synopsis || ''}
-                onChange={(e) => handleFormChange('synopsis', e.target.value)}
+                value={editForm.synopsis || ""}
+                onChange={(e) => handleFormChange("synopsis", e.target.value)}
                 rows={4}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Enter movie synopsis..."
+                disabled={loading}
               />
             </div>
           </div>
@@ -268,15 +405,17 @@ const MovieList = () => {
             <button
               onClick={handleCancelEdit}
               className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500"
+              disabled={loading}
             >
               Cancel
             </button>
             <button
               onClick={handleSaveEdit}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center space-x-2"
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center space-x-2 disabled:opacity-50"
+              disabled={loading}
             >
               <Save className="w-4 h-4" />
-              <span>Save Changes</span>
+              <span>{loading ? "Saving..." : "Save Changes"}</span>
             </button>
           </div>
         </div>
@@ -284,12 +423,24 @@ const MovieList = () => {
     );
   };
 
+  // Loading overlay
+  if (loading && movies.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <NavbarAdmin />
+        <div className="flex justify-center items-center h-64">
+          <div className="text-lg text-gray-600">Loading movies...</div>
+        </div>
+      </div>
+    );
+  }
+
   // Movie Details View
   if (viewingMovie) {
     return (
       <div className="min-h-screen bg-gray-50">
         <NavbarAdmin />
-        
+
         <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="bg-white rounded-lg shadow">
             {/* Header */}
@@ -302,7 +453,9 @@ const MovieList = () => {
                   <ArrowLeft className="w-5 h-5 mr-2" />
                   Back to List
                 </button>
-                <h1 className="text-2xl font-bold text-gray-900">Movie Details</h1>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  Movie Details
+                </h1>
               </div>
             </div>
 
@@ -310,20 +463,26 @@ const MovieList = () => {
             <div className="p-6 space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
                 <img
-                  src="/spiderman-sear.svg"
+                  src={viewingMovie.thumbnail || "/spiderman-sear.svg"}
                   alt="Movie thumbnail"
                   className="w-16 h-16 rounded object-cover border mx-auto sm:mx-0"
                 />
                 <div className="text-center sm:text-left">
-                  <h4 className="font-bold text-xl">{viewingMovie.movieName}</h4>
-                  <p className="text-sm text-gray-500">{viewingMovie.category}</p>
+                  <h4 className="font-bold text-xl">
+                    {viewingMovie.movieName}
+                  </h4>
+                  <p className="text-sm text-gray-500">
+                    {viewingMovie.category}
+                  </p>
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                 <div className="space-y-3">
                   <div>
-                    <span className="font-medium text-gray-700">Release Date:</span>
+                    <span className="font-medium text-gray-700">
+                      Release Date:
+                    </span>
                     <p className="text-gray-900">{viewingMovie.releasedDate}</p>
                   </div>
                   <div>
@@ -335,15 +494,13 @@ const MovieList = () => {
                     <p className="text-gray-900">{viewingMovie.directorName}</p>
                   </div>
                   <div>
-                    <span className="font-medium text-gray-700">Show Date:</span>
-                    <p className="text-gray-900">{viewingMovie.showDate}</p>
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-700">Show Time:</span>
-                    <p className="text-gray-900">{viewingMovie.showTime}</p>
+                    <span className="font-medium text-gray-700">Rating:</span>
+                    <p className="text-gray-900">
+                      {viewingMovie.rating || "N/A"}
+                    </p>
                   </div>
                 </div>
-                
+
                 <div className="space-y-3">
                   <div>
                     <span className="font-medium text-gray-700">Cast:</span>
@@ -358,7 +515,9 @@ const MovieList = () => {
 
               <div>
                 <span className="font-medium text-gray-700">Synopsis:</span>
-                <p className="mt-2 text-gray-900 text-sm leading-relaxed">{viewingMovie.synopsis}</p>
+                <p className="mt-2 text-gray-900 text-sm leading-relaxed">
+                  {viewingMovie.synopsis}
+                </p>
               </div>
             </div>
           </div>
@@ -377,14 +536,19 @@ const MovieList = () => {
           {/* Page Header */}
           <div className="px-3 sm:px-6 py-4 border-b border-gray-200">
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-3 sm:space-y-0">
-              <h2 className="text-lg sm:text-xl font-semibold text-gray-900">List Movie</h2>
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
+                List Movie
+              </h2>
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
                 <div className="relative">
                   <button
                     onClick={() => setShowMonthDropdown(!showMonthDropdown)}
                     className="w-full sm:w-auto flex items-center justify-between space-x-2 border rounded-lg px-3 py-2 hover:bg-gray-50"
+                    disabled={loading}
                   >
-                    <span className="text-gray-600 text-sm sm:text-base">{selectedMonth}</span>
+                    <span className="text-gray-600 text-sm sm:text-base">
+                      {selectedMonth}
+                    </span>
                     <ChevronDown className="w-4 h-4" />
                   </button>
                   {showMonthDropdown && (
@@ -406,7 +570,8 @@ const MovieList = () => {
                 </div>
                 <button
                   onClick={handleAddNew}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center justify-center space-x-2 hover:bg-blue-700 text-sm sm:text-base"
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center justify-center space-x-2 hover:bg-blue-700 text-sm sm:text-base disabled:opacity-50"
+                  disabled={loading}
                 >
                   <Plus className="w-4 h-4" />
                   <span>Add Movies</span>
@@ -414,6 +579,13 @@ const MovieList = () => {
               </div>
             </div>
           </div>
+
+          {/* Loading indicator for actions */}
+          {loading && movies.length > 0 && (
+            <div className="px-6 py-2 bg-blue-50 border-b border-gray-200">
+              <div className="text-sm text-blue-600">Processing...</div>
+            </div>
+          )}
 
           {/* Mobile Card View */}
           <div className="block sm:hidden">
@@ -424,17 +596,23 @@ const MovieList = () => {
                     <div className="w-2 h-2 bg-blue-600 rounded-full mt-2"></div>
                   </div>
                   <img
-                    src="/spiderman-sear.svg"
+                    src={movie.thumbnail || "/spiderman-sear.svg"}
                     alt={movie.movieName}
                     className="w-16 h-16 rounded object-cover flex-shrink-0"
                   />
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-blue-600 font-medium text-sm truncate">{movie.movieName}</h3>
-                    <p className="text-xs text-gray-500 mt-1">{movie.category}</p>
+                    <h3 className="text-blue-600 font-medium text-sm truncate">
+                      {movie.movieName}
+                    </h3>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {movie.category}
+                    </p>
                     <div className="mt-2 space-y-1">
                       <div className="flex justify-between text-xs">
                         <span className="text-gray-500">Released:</span>
-                        <span className="font-medium">{movie.releasedDate}</span>
+                        <span className="font-medium">
+                          {movie.releasedDate}
+                        </span>
                       </div>
                       <div className="flex justify-between text-xs">
                         <span className="text-gray-500">Duration:</span>
@@ -444,19 +622,22 @@ const MovieList = () => {
                     <div className="flex justify-end space-x-1 mt-3">
                       <button
                         onClick={() => handleView(movie)}
-                        className="bg-blue-100 text-blue-600 p-1.5 rounded hover:bg-blue-200"
+                        className="bg-blue-100 text-blue-600 p-1.5 rounded hover:bg-blue-200 disabled:opacity-50"
+                        disabled={loading}
                       >
                         <Eye className="w-3 h-3" />
                       </button>
                       <button
                         onClick={() => handleEdit(movie)}
-                        className="bg-purple-100 text-purple-600 p-1.5 rounded hover:bg-purple-200"
+                        className="bg-purple-100 text-purple-600 p-1.5 rounded hover:bg-purple-200 disabled:opacity-50"
+                        disabled={loading}
                       >
                         <Edit2 className="w-3 h-3" />
                       </button>
                       <button
                         onClick={() => handleDelete(movie.id)}
-                        className="bg-red-100 text-red-600 p-1.5 rounded hover:bg-red-200"
+                        className="bg-red-100 text-red-600 p-1.5 rounded hover:bg-red-200 disabled:opacity-50"
+                        disabled={loading}
                       >
                         <Trash2 className="w-3 h-3" />
                       </button>
@@ -472,49 +653,76 @@ const MovieList = () => {
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thumbnail</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Movie Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Released Date</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    No
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Thumbnail
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Movie Name
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Category
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Released Date
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Duration
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Action
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {currentMovies.map((movie, index) => (
                   <tr key={movie.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{startIndex + index + 1}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {startIndex + index + 1}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <img
-                        src="/spiderman-sear.svg"
+                        src={movie.thumbnail || "/spiderman-sear.svg"}
                         alt={movie.movieName}
                         className="w-12 h-12 rounded object-cover"
                       />
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-blue-600 font-medium">{movie.movieName}</span>
+                      <span className="text-blue-600 font-medium">
+                        {movie.movieName}
+                      </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{movie.category}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{movie.releasedDate}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{movie.duration}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {movie.category}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {movie.releasedDate}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {movie.duration}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex space-x-2">
                         <button
                           onClick={() => handleView(movie)}
-                          className="bg-blue-100 text-blue-600 p-2 rounded hover:bg-blue-200"
+                          className="bg-blue-100 text-blue-600 p-2 rounded hover:bg-blue-200 disabled:opacity-50"
+                          disabled={loading}
                         >
                           <Eye className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleEdit(movie)}
-                          className="bg-purple-100 text-purple-600 p-2 rounded hover:bg-purple-200"
+                          className="bg-purple-100 text-purple-600 p-2 rounded hover:bg-purple-200 disabled:opacity-50"
+                          disabled={loading}
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(movie.id)}
-                          className="bg-red-100 text-red-600 p-2 rounded hover:bg-red-200"
+                          className="bg-red-100 text-red-600 p-2 rounded hover:bg-red-200 disabled:opacity-50"
+                          disabled={loading}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -526,24 +734,36 @@ const MovieList = () => {
             </table>
           </div>
 
-          {/* Pagination */}
-          <div className="px-3 sm:px-6 py-4 border-t border-gray-200">
-            <div className="flex justify-center space-x-1 sm:space-x-2">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                <button
-                  key={page}
-                  onClick={() => setCurrentPage(page)}
-                  className={`px-2 sm:px-3 py-2 rounded text-sm ${
-                    currentPage === page
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                  }`}
-                >
-                  {page}
-                </button>
-              ))}
+          {/* Empty state */}
+          {movies.length === 0 && !loading && (
+            <div className="text-center py-8">
+              <p className="text-gray-500">No movies found</p>
             </div>
-          </div>
+          )}
+
+          {/* Pagination */}
+          {movies.length > 0 && (
+            <div className="px-3 sm:px-6 py-4 border-t border-gray-200">
+              <div className="flex justify-center space-x-1 sm:space-x-2">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                  (page) => (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`px-2 sm:px-3 py-2 rounded text-sm ${
+                        currentPage === page
+                          ? "bg-blue-600 text-white"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
+                      disabled={loading}
+                    >
+                      {page}
+                    </button>
+                  )
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </main>
 
