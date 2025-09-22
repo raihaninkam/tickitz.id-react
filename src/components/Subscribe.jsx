@@ -157,8 +157,9 @@ const NewsletterSubscribe = () => {
     return (
         <section 
             id="subscribe" 
-            className="mx-4 md:mx-20 my-8 md:my-24 bg-[url('BG-newslater.svg')] bg-cover bg-center rounded-lg flex justify-center items-center"
+            className="mx-4 md:mx-20 my-8 md:my-24 bg-[url(/BG-newslater.svg)] bg-cover bg-center rounded-lg flex justify-center items-center"
         >
+        
             <div className="container-subscribe mt-16 w-full px-4">
                 {/* Title */}
                 <div className="subs">

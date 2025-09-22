@@ -6,7 +6,7 @@ const MyFooter = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div>
             <img
-              src="tickitz 1.svg"
+              src="/tickitz 1.svg"
               alt="Tickitz Logo"
               className="h-8 mb-4"
             />
@@ -34,17 +34,17 @@ const MyFooter = () => {
               <div
                 className="w-16 h-8 flex items-center justify-center"
               >
-                <img src="ebv.id 2.svg" alt=""/>
+                <img src="/ebv.id 2.svg" alt=""/>
               </div>
               <div
                 className="w-16 h-8 flex items-center justify-center"
               >
-                <img src="CineOne21 2.svg" alt=""/>
+                <img src="/CineOne21 2.svg" alt=""/>
               </div>
               <div
                 className="w-16 h-8 flex items-center justify-center"
               >
-                <img src="hiflix 2.svg" alt=""/>
+                <img src="/hiflix 2.svg" alt=""/>
               </div>
             </div>
           </div>
@@ -53,19 +53,19 @@ const MyFooter = () => {
             <h3 className="font-bold mb-4">Follow us</h3>
             <div className="space-y-3 text-sm text-gray-600">
               <div className="flex items-center space-x-2">
-                <img src="eva_facebook-outline.svg" alt=""/>
+                <img src="/eva_facebook-outline.svg" alt=""/>
                 <span>Tickitz Cinema id</span>
               </div>
               <div className="flex items-center space-x-2">
-                <img src="bx_bxl-instagram.svg" alt=""/>
+                <img src="/bx_bxl-instagram.svg" alt=""/>
                 <span>tickitz.id</span>
               </div>
               <div className="flex items-center space-x-2">
-                <img src="eva_twitter-outline.svg" alt=""/>
+                <img src="/eva_twitter-outline.svg" alt=""/>
                 <span>tickitz.id</span>
               </div>
               <div className="flex items-center space-x-2">
-                <img src="feather_youtube.svg" alt=""/>
+                <img src="/feather_youtube.svg" alt=""/>
                 <span>Tickitz Cinema id</span>
               </div>
             </div>

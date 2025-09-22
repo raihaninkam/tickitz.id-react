@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { Link, useNavigate } from "react-router";
 import { logout } from "../redux/slices/authSlice";
 
-const MyNavbar = () => {
+const NavbarAdmin = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
@@ -32,7 +32,7 @@ const MyNavbar = () => {
     setShowMobileMenu(!showMobileMenu);
   };
 
-  // tutup dropdown kalau klik di luar
+  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (!event.target.closest(".user-menu-container")) {
@@ -60,30 +60,24 @@ const MyNavbar = () => {
         {/* Desktop Navigation Menu */}
         <div className="hidden md:flex space-x-8">
           <Link
-            to="/home"
+            to="/chart"
             className="text-gray-800 hover:text-blue-600 transition-colors font-medium"
           >
-            Home
+            Dashboard
           </Link>
 
           <Link
-            to="/home/movies"
+            to="/movieList"
             className="text-gray-800 hover:text-blue-600 transition-colors font-medium"
           >
             Movie
-          </Link>
-
-          <Link
-            to="/home/order"
-            className="text-gray-800 hover:text-blue-600 transition-colors font-medium"
-          >
-            Buy Ticket
           </Link>
         </div>
 
         {/* Desktop Auth Section */}
         <div className="hidden md:flex items-center space-x-4">
           {!isLoggedIn ? (
+            // Not logged in - Show Sign In/Sign Up buttons
             <>
               <Link
                 to="/Login"
@@ -99,87 +93,108 @@ const MyNavbar = () => {
               </Link>
             </>
           ) : (
-            <div className="relative user-menu-container">
-              <button
-                onClick={toggleUserMenu}
-                className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center overflow-hidden">
-                  {user?.avatar ? (
-                    <img
-                      src={user.avatar}
-                      alt="User Avatar"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <span className="text-blue-600 font-semibold text-sm">
-                      {user?.name?.charAt(0) || user?.email?.charAt(0) || "U"}
-                    </span>
-                  )}
-                </div>
+            // Logged in - Show user profile dropdown
+            <div className="hidden lg:flex items-center gap-4">
+              <div className="flex items-center gap-1.5 text-slate-500 text-sm cursor-pointer px-3 py-2 rounded-md hover:bg-slate-50 transition-colors">
+                <span>Location</span>
                 <svg
-                  className={`w-4 h-4 text-gray-500 transition-transform ${
-                    showUserMenu ? "rotate-180" : ""
-                  }`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+                  width="12"
+                  height="8"
+                  viewBox="0 0 12 8"
+                  fill="currentColor"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
-                  />
+                  <path d="M6 8L0 2L1.41 0.59L6 5.17L10.59 0.59L12 2L6 8Z" />
+                </svg>
+              </div>
+              <button className="text-slate-500 p-2 rounded-md hover:bg-slate-50 transition-colors">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 16 16"
+                  fill="currentColor"
+                >
+                  <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z" />
                 </svg>
               </button>
-
-              {/* User Dropdown Menu */}
-              {showUserMenu && (
-                <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-2">
-                  <div className="px-4 py-3 border-b border-gray-100">
-                    <p className="text-sm font-medium text-gray-900">
-                      {user?.name || "User"}
-                    </p>
-                    <p className="text-sm text-gray-500 truncate">
-                      {user?.email}
-                    </p>
+              <div className="relative user-menu-container">
+                <button
+                  onClick={toggleUserMenu}
+                  className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center overflow-hidden">
+                    {user?.avatar ? (
+                      <img
+                        src={user.avatar}
+                        alt="User Avatar"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-blue-600 font-semibold text-sm">
+                        {user?.name?.charAt(0) || user?.email?.charAt(0) || "U"}
+                      </span>
+                    )}
                   </div>
-
-                  <Link
-                    to="/profile"
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                    onClick={() => setShowUserMenu(false)}
+                  <svg
+                    className={`w-4 h-4 text-gray-500 transition-transform ${
+                      showUserMenu ? "rotate-180" : ""
+                    }`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
                   >
-                    Profile Settings
-                  </Link>
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </button>
 
-                  <Link
-                    to="/order-history"
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                    onClick={() => setShowUserMenu(false)}
-                  >
-                    My Tickets
-                  </Link>
+                {showUserMenu && (
+                  <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-2">
+                    <div className="px-4 py-3 border-b border-gray-100">
+                      <p className="text-sm font-medium text-gray-900">
+                        {user?.name || "User"}
+                      </p>
+                      <p className="text-sm text-gray-500 truncate">
+                        {user?.email}
+                      </p>
+                    </div>
 
-                  <Link
-                    to="/purchase-history"
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                    onClick={() => setShowMobileMenu(false)}
-                  >
-                    Purchase History
-                  </Link>
+                    <Link
+                      to="/profile"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                      onClick={() => setShowUserMenu(false)}
+                    >
+                      Profile Settings
+                    </Link>
+                    <Link
+                      to="/order-history"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                      onClick={() => setShowUserMenu(false)}
+                    >
+                      My Tickets
+                    </Link>
+                    <Link
+                      to="/purchase-history"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                      onClick={() => setShowUserMenu(false)}
+                    >
+                      Purchase History
+                    </Link>
 
-                  <hr className="my-2" />
+                    <hr className="my-2" />
 
-                  <button
-                    onClick={handleLogout}
-                    className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                  >
-                    Logout
-                  </button>
-                </div>
-              )}
+                    <button
+                      onClick={handleLogout}
+                      className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                    >
+                      Logout
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -211,25 +226,18 @@ const MyNavbar = () => {
               {/* Mobile Navigation Links */}
               <div className="border-b border-gray-100 pb-2 mb-2">
                 <Link
-                  to="/home"
+                  to="/crud"
                   className="block px-4 py-2 text-gray-800 hover:bg-gray-50 transition-colors"
                   onClick={() => setShowMobileMenu(false)}
                 >
-                  Home
+                  Dashboard
                 </Link>
                 <Link
-                  to="/home/movies"
+                  to="/chart"
                   className="block px-4 py-2 text-gray-800 hover:bg-gray-50 transition-colors"
                   onClick={() => setShowMobileMenu(false)}
                 >
                   Movie
-                </Link>
-                <Link
-                  to="/home/order"
-                  className="block px-4 py-2 text-gray-800 hover:bg-gray-50 transition-colors"
-                  onClick={() => setShowMobileMenu(false)}
-                >
-                  Buy Ticket
                 </Link>
               </div>
 
@@ -323,4 +331,4 @@ const MyNavbar = () => {
   );
 };
 
-export default MyNavbar;
+export default NavbarAdmin;

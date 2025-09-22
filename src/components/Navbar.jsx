@@ -1,66 +1,66 @@
 import { useState, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { Link, useNavigate } from "react-router";
+import { fetchUserProfile } from "../redux/slices/authSlice";
+import { clearCredentials, logoutUser } from "../hooks/useAuth";
 
 const MyNavbar = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [currentUser, setCurrentUser] = useState(null);
-  const [showUserMenu, setShowUserMenu] = useState(false);
-  const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  // Check if user is logged in on component mount
-  useEffect(() => {
-    try {
-      const user = JSON.parse(localStorage.getItem('currentUser') || 'null');
-          
-      if (user) {
-        setIsLoggedIn(true);
-        setCurrentUser(user);
-      }
-    } catch (error) {
-      console.error('Error reading user session:', error);
-    }
-  }, []);
+  // ambil dari redux
+  const { token, user, loading } = useSelector((state) => state.auth);
 
-  // Handle logout
-  const handleLogout = () => {
+  const isLoggedIn = Boolean(token);
+
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [logoutError, setLogoutError] = useState(null);
+
+  const handleLogout = async () => {
     try {
-      
-      localStorage.removeItem('currentUser');
-      
-      setIsLoggedIn(false);
-      setCurrentUser(null);
+      setLogoutError(null);
+      await dispatch(logoutUser()).unwrap();
       setShowUserMenu(false);
-      alert('Logout berhasil!');
-      navigate('/Login');
+      setShowMobileMenu(false);
+      navigate("/login");
     } catch (error) {
-      console.error('Error during logout:', error);
+      console.error("Logout failed:", error);
+      setLogoutError("Logout failed. Please try again.");
+      // Even if the backend logout fails, we still clear the local state
+      dispatch(clearCredentials());
+      navigate("/login");
     }
   };
 
-  // Toggle user dropdown menu
   const toggleUserMenu = () => {
     setShowUserMenu(!showUserMenu);
   };
 
-  // Toggle mobile menu
   const toggleMobileMenu = () => {
     setShowMobileMenu(!showMobileMenu);
   };
 
-  // Close dropdowns when clicking outside
+  // Fetch user profile saat login
+  useEffect(() => {
+    if (token && (!user || !user.first_name)) {
+      dispatch(fetchUserProfile());
+    }
+  }, [dispatch, token, user]);
+
+  // tutup dropdown kalau klik di luar
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (!event.target.closest('.user-menu-container')) {
+      if (!event.target.closest(".user-menu-container")) {
         setShowUserMenu(false);
       }
-      if (!event.target.closest('.mobile-menu-container')) {
+      if (!event.target.closest(".mobile-menu-container")) {
         setShowMobileMenu(false);
       }
     };
 
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
   }, []);
 
   return (
@@ -69,7 +69,7 @@ const MyNavbar = () => {
         {/* Logo */}
         <div className="flex items-center">
           <Link to="/home" className="flex items-center">
-           <img src="/tickitz 1.svg" alt="" />
+            <img src="/tickitz 1.svg" alt="Tickitz Logo" />
           </Link>
         </div>
 
@@ -81,14 +81,12 @@ const MyNavbar = () => {
           >
             Home
           </Link>
-
           <Link
             to="/home/movies"
             className="text-gray-800 hover:text-blue-600 transition-colors font-medium"
           >
             Movie
           </Link>
-
           <Link
             to="/home/order"
             className="text-gray-800 hover:text-blue-600 transition-colors font-medium"
@@ -100,7 +98,6 @@ const MyNavbar = () => {
         {/* Desktop Auth Section */}
         <div className="hidden md:flex items-center space-x-4">
           {!isLoggedIn ? (
-            // Not logged in - Show Sign In/Sign Up buttons
             <>
               <Link
                 to="/Login"
@@ -116,47 +113,60 @@ const MyNavbar = () => {
               </Link>
             </>
           ) : (
-            // Logged in - Show user profile dropdown
             <div className="relative user-menu-container">
               <button
                 onClick={toggleUserMenu}
                 className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 transition-colors"
+                disabled={loading}
               >
                 <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center overflow-hidden">
-                  {currentUser?.avatar ? (
-                    <img 
-                      src={currentUser.avatar} 
-                      alt="User Avatar" 
+                  {user?.profile_picture ? (
+                    <img
+                      src={`${import.meta.env.VITE_BE_HOST}/public/${
+                        user.profile_picture
+                      }`}
+                      alt="User Avatar"
                       className="w-full h-full object-cover"
                     />
                   ) : (
                     <span className="text-blue-600 font-semibold text-sm">
-                      {currentUser?.name?.charAt(0) || currentUser?.email?.charAt(0) || 'U'}
+                      {user?.first_name?.charAt(0) ||
+                        user?.last_name?.charAt(0) ||
+                        user?.email?.charAt(0) ||
+                        "U"}
                     </span>
                   )}
                 </div>
-                <svg 
-                  className={`w-4 h-4 text-gray-500 transition-transform ${showUserMenu ? 'rotate-180' : ''}`}
-                  fill="none" 
-                  stroke="currentColor" 
+                <svg
+                  className={`w-4 h-4 text-gray-500 transition-transform ${
+                    showUserMenu ? "rotate-180" : ""
+                  }`}
+                  fill="none"
+                  stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
                 </svg>
               </button>
 
-              {/* User Dropdown Menu */}
               {showUserMenu && (
                 <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-2">
                   <div className="px-4 py-3 border-b border-gray-100">
                     <p className="text-sm font-medium text-gray-900">
-                      {currentUser?.name || 'User'}
+                      {user?.first_name && user?.last_name
+                        ? `${user.first_name} ${user.last_name}`
+                        : user?.first_name || user?.last_name || "User"}
                     </p>
                     <p className="text-sm text-gray-500 truncate">
-                      {currentUser?.email}
+                      {user?.email}
                     </p>
                   </div>
-                  
+
                   <Link
                     to="/profile"
                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
@@ -164,30 +174,61 @@ const MyNavbar = () => {
                   >
                     Profile Settings
                   </Link>
-                  
                   <Link
-                    to="/my-tickets"
+                    to="/order-history"
                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                     onClick={() => setShowUserMenu(false)}
                   >
                     My Tickets
                   </Link>
-                  
                   <Link
-                    to="/purchase-history"
+                    to="/order-history"
                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                     onClick={() => setShowUserMenu(false)}
                   >
                     Purchase History
                   </Link>
-                  
+
                   <hr className="my-2" />
-                  
+
+                  {logoutError && (
+                    <div className="px-4 py-2 text-sm text-red-600">
+                      {logoutError}
+                    </div>
+                  )}
+
                   <button
                     onClick={handleLogout}
-                    className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                    disabled={loading}
+                    className="flex items-center justify-center w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
                   >
-                    Logout
+                    {loading ? (
+                      <>
+                        <svg
+                          className="animate-spin -ml-1 mr-2 h-4 w-4 text-red-600"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          ></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          ></path>
+                        </svg>
+                        Logging out...
+                      </>
+                    ) : (
+                      "Logout"
+                    )}
                   </button>
                 </div>
               )}
@@ -201,15 +242,23 @@ const MyNavbar = () => {
             onClick={toggleMobileMenu}
             className="p-2 rounded-lg hover:bg-gray-50 transition-colors"
           >
-            <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            <svg
+              className="w-6 h-6 text-gray-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 6h16M4 12h16M4 18h16"
+              />
             </svg>
           </button>
 
-          {/* Mobile Dropdown Menu */}
           {showMobileMenu && (
             <div className="absolute right-4 top-16 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-2">
-              {/* Mobile Navigation Links */}
               <div className="border-b border-gray-100 pb-2 mb-2">
                 <Link
                   to="/home"
@@ -226,7 +275,7 @@ const MyNavbar = () => {
                   Movie
                 </Link>
                 <Link
-                  to="/buy-ticket"
+                  to="/home/order"
                   className="block px-4 py-2 text-gray-800 hover:bg-gray-50 transition-colors"
                   onClick={() => setShowMobileMenu(false)}
                 >
@@ -234,7 +283,6 @@ const MyNavbar = () => {
                 </Link>
               </div>
 
-              {/* Mobile Auth Section */}
               {!isLoggedIn ? (
                 <div className="px-4 py-2 space-y-2">
                   <Link
@@ -257,29 +305,36 @@ const MyNavbar = () => {
                   <div className="px-4 py-3 border-b border-gray-100">
                     <div className="flex items-center space-x-3">
                       <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center overflow-hidden">
-                        {currentUser?.avatar ? (
-                          <img 
-                            src={currentUser.avatar} 
-                            alt="User Avatar" 
+                        {user?.profile_picture ? (
+                          <img
+                            src={`${import.meta.env.VITE_BE_HOST}/public/${
+                              user.profile_picture
+                            }`}
+                            alt="User Avatar"
                             className="w-full h-full object-cover"
                           />
                         ) : (
                           <span className="text-blue-600 font-semibold text-sm">
-                            {currentUser?.name?.charAt(0) || currentUser?.email?.charAt(0) || 'U'}
+                            {user?.first_name?.charAt(0) ||
+                              user?.last_name?.charAt(0) ||
+                              user?.email?.charAt(0) ||
+                              "U"}
                           </span>
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900 truncate">
-                          {currentUser?.name || 'User'}
+                          {user?.first_name && user?.last_name
+                            ? `${user.first_name} ${user.last_name}`
+                            : user?.first_name || user?.last_name || "User"}
                         </p>
                         <p className="text-sm text-gray-500 truncate">
-                          {currentUser?.email}
+                          {user?.email}
                         </p>
                       </div>
                     </div>
                   </div>
-                  
+
                   <Link
                     to="/profile"
                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
@@ -287,15 +342,13 @@ const MyNavbar = () => {
                   >
                     Profile Settings
                   </Link>
-                  
                   <Link
-                    to="/my-tickets"
+                    to="/order-history"
                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                     onClick={() => setShowMobileMenu(false)}
                   >
                     My Tickets
                   </Link>
-                  
                   <Link
                     to="/purchase-history"
                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
@@ -303,14 +356,47 @@ const MyNavbar = () => {
                   >
                     Purchase History
                   </Link>
-                  
+
                   <hr className="my-2" />
-                  
+
+                  {logoutError && (
+                    <div className="px-4 py-2 text-sm text-red-600">
+                      {logoutError}
+                    </div>
+                  )}
+
                   <button
                     onClick={handleLogout}
-                    className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                    disabled={loading}
+                    className="flex items-center justify-center w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
                   >
-                    Logout
+                    {loading ? (
+                      <>
+                        <svg
+                          className="animate-spin -ml-1 mr-2 h-4 w-4 text-red-600"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          ></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          ></path>
+                        </svg>
+                        Logging out...
+                      </>
+                    ) : (
+                      "Logout"
+                    )}
                   </button>
                 </div>
               )}
