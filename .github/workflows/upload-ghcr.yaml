@@ -1,30 +1,34 @@
-name: Build and publish Docker images to GHCR
+name: Build and publish Frontend Docker image to GHCR
 
 on:
   push:
-    branches: ["main"]
+    branches: ["master"]
+
 jobs:
-  # ================= BACKEND =================
-  backend:
-    name: Build & Publish Backend Image
+  build-frontend:
+    name: Build & Publish Frontend Image
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          go-version: "1.22"
+          node-version: "20"
 
-      - name: Download Go dependencies
-        working-directory: ./backend
-        run: go mod tidy
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci
 
-      - name: Build and publish Docker image (backend)
+      - name: Build frontend
+        working-directory: ./frontend
+        run: npm run build
+
+      - name: Build and publish Docker image (frontend)
         uses: macbre/push-to-ghcr@master
         with:
-          image_name: ${{ github.repository }}-backend
+          image_name: ${{ github.repository }}-frontend
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          dockerfile: ./backend/Dockerfile
-          context: ./backend
+          dockerfile: ./frontend/Dockerfile
+          context: ./frontend
