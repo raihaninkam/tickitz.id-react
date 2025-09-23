@@ -12,7 +12,16 @@ RUN npm run build
 
 # Serve stage
 FROM nginx:alpine
-COPY --from=build /app/dist /usr/share/nginx/html
-COPY --from=build /app/nginx/includes/proxy.conf /etc/nginx/includes/proxy.conf
+COPY --from=builder /app/nginx/nginx.conf /etc/nginx/
+COPY --from=builder /app/nginx/sites-available/app.conf /etc/nginx/sites-available/
+COPY --from=builder /app/nginx/includes/proxy.conf /etc/nginx/includes/proxy.conf
+# create symlink
+RUN mkdir -p /etc/nginx/sites-enabled
+RUN ln -s /etc/nginx/sites-available/app.conf /etc/nginx/sites-enabled/
+# copy aplikasi dari builder ke lokasi serve
+RUN mkdir -p /var/www/client
+COPY --from=builder /app/dist /var/www/client
+# buka port untuk akses nginx
 EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+# jalankan nginx di foreground
+CMD [ "nginx", "-g", "daemon off;" ]
