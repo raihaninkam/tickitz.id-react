@@ -812,3 +812,4 @@ const MovieDetailPage = ({ onBookingDataChange }) => {
 };
 
 export default MovieDetailPage;
+//
