@@ -13,4 +13,4 @@ jobs:
         with:
           image_name: ${{ github.repository }} # it will be lowercased internally
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          extra_args: "--build-arg VITE_BE_HOST=/api/"
+          extra_args: "--build-arg VITE_BE_HOST=/api"
