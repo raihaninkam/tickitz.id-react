@@ -185,7 +185,7 @@ const PaymentPage = () => {
     }
 
     if (!validateForm()) {
-      alert("Please fill in all required fields");
+      toast.error("Please fill in all required fields");
       return;
     }
 
@@ -240,6 +240,12 @@ const PaymentPage = () => {
   }, [showModal]);
 
   const token = useSelector((state) => state.auth.token);
+
+  const fName = useSelector((state) => state.auth.user.first_name);
+  const lName = useSelector((state) => state.auth.user.last_name);
+  const email = useSelector((state) => state.auth.user.email);
+  const phoneNumber = useSelector((state) => state.auth.user.phone_number);
+
   // API call to create order
   const createOrderAPI = async (orderPayload) => {
     try {
@@ -431,7 +437,7 @@ const PaymentPage = () => {
                 <input
                   type="text"
                   name="fullName"
-                  value={formData.fullName}
+                  value={`${fName}${lName}`}
                   onChange={handleInputChange}
                   placeholder="Enter your full name"
                   className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent ${
@@ -447,7 +453,7 @@ const PaymentPage = () => {
                 <input
                   type="email"
                   name="email"
-                  value={formData.email}
+                  value={email}
                   onChange={handleInputChange}
                   placeholder="Enter your email"
                   className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent ${
@@ -467,7 +473,7 @@ const PaymentPage = () => {
                   <input
                     type="text"
                     name="phoneNumber"
-                    value={formData.phoneNumber}
+                    value={phoneNumber}
                     onChange={handleInputChange}
                     placeholder="81445687121"
                     className={`w-full pl-14 pr-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent ${

@@ -59,6 +59,7 @@ const Login = () => {
             setCredentials({
               token: data.token,
               user: { email: formData.email },
+              role: data.role,
             })
           );
 

@@ -18,6 +18,9 @@ const OrderPage = () => {
   // Ambil data order dari redux persist (hasil inputan dari details.jsx)
   const bookingData = useSelector((state) => state.order.currentOrder);
 
+  const nowShowingId = bookingData.selectedCinema.id;
+  console.log(nowShowingId);
+
   const orderData = useSelector((state) => state.order.currentOrder);
   console.log("Order data in Redux:", orderData);
 
@@ -62,8 +65,7 @@ const OrderPage = () => {
         cinema: bookingData.selectedCinema?.name || "Unknown Cinema",
         location: bookingData.selectedLocation,
         ticketPrice: bookingData.ticketPrice || 10,
-        nowShowingId:
-          bookingData.nowShowingId || bookingData.selectedCinema?.id || null,
+        nowShowingId: nowShowingId,
       }
     : fallbackBookingDetails;
 

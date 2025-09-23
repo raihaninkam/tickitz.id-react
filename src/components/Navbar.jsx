@@ -9,9 +9,7 @@ const MyNavbar = () => {
   const navigate = useNavigate();
 
   // ambil dari redux
-  const { token, user, loading } = useSelector((state) => state.auth);
-
-  const isLoggedIn = Boolean(token);
+  const auth = useSelector((state) => state.auth);
 
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
@@ -43,10 +41,11 @@ const MyNavbar = () => {
 
   // Fetch user profile saat login
   useEffect(() => {
+    const { token, user } = auth;
     if (token && (!user || !user.first_name)) {
       dispatch(fetchUserProfile());
     }
-  }, [dispatch, token, user]);
+  }, [dispatch]);
 
   // tutup dropdown kalau klik di luar
   useEffect(() => {
@@ -97,7 +96,7 @@ const MyNavbar = () => {
 
         {/* Desktop Auth Section */}
         <div className="hidden md:flex items-center space-x-4">
-          {!isLoggedIn ? (
+          {!auth.token ? (
             <>
               <Link
                 to="/Login"
@@ -117,22 +116,22 @@ const MyNavbar = () => {
               <button
                 onClick={toggleUserMenu}
                 className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 transition-colors"
-                disabled={loading}
+                disabled={auth.loading}
               >
                 <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center overflow-hidden">
-                  {user?.profile_picture ? (
+                  {auth.user?.profile_picture ? (
                     <img
                       src={`${import.meta.env.VITE_BE_HOST}/public/${
-                        user.profile_picture
+                        auth.user.profile_picture
                       }`}
                       alt="User Avatar"
                       className="w-full h-full object-cover"
                     />
                   ) : (
                     <span className="text-blue-600 font-semibold text-sm">
-                      {user?.first_name?.charAt(0) ||
-                        user?.last_name?.charAt(0) ||
-                        user?.email?.charAt(0) ||
+                      {auth.user?.first_name?.charAt(0) ||
+                        auth.user?.last_name?.charAt(0) ||
+                        auth.user?.email?.charAt(0) ||
                         "U"}
                     </span>
                   )}
@@ -158,12 +157,14 @@ const MyNavbar = () => {
                 <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-2">
                   <div className="px-4 py-3 border-b border-gray-100">
                     <p className="text-sm font-medium text-gray-900">
-                      {user?.first_name && user?.last_name
-                        ? `${user.first_name} ${user.last_name}`
-                        : user?.first_name || user?.last_name || "User"}
+                      {auth.user?.first_name && auth.user?.last_name
+                        ? `${auth.user.first_name} ${auth.user.last_name}`
+                        : auth.user?.first_name ||
+                          auth.user?.last_name ||
+                          "User"}
                     </p>
                     <p className="text-sm text-gray-500 truncate">
-                      {user?.email}
+                      {auth.user?.email}
                     </p>
                   </div>
 
@@ -199,10 +200,10 @@ const MyNavbar = () => {
 
                   <button
                     onClick={handleLogout}
-                    disabled={loading}
+                    disabled={auth.loading}
                     className="flex items-center justify-center w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
                   >
-                    {loading ? (
+                    {auth.loading ? (
                       <>
                         <svg
                           className="animate-spin -ml-1 mr-2 h-4 w-4 text-red-600"
@@ -283,7 +284,7 @@ const MyNavbar = () => {
                 </Link>
               </div>
 
-              {!isLoggedIn ? (
+              {!auth.token ? (
                 <div className="px-4 py-2 space-y-2">
                   <Link
                     to="/Login"
@@ -305,31 +306,33 @@ const MyNavbar = () => {
                   <div className="px-4 py-3 border-b border-gray-100">
                     <div className="flex items-center space-x-3">
                       <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center overflow-hidden">
-                        {user?.profile_picture ? (
+                        {auth.user?.profile_picture ? (
                           <img
                             src={`${import.meta.env.VITE_BE_HOST}/public/${
-                              user.profile_picture
+                              auth.user.profile_picture
                             }`}
                             alt="User Avatar"
                             className="w-full h-full object-cover"
                           />
                         ) : (
                           <span className="text-blue-600 font-semibold text-sm">
-                            {user?.first_name?.charAt(0) ||
-                              user?.last_name?.charAt(0) ||
-                              user?.email?.charAt(0) ||
+                            {auth.user?.first_name?.charAt(0) ||
+                              auth.user?.last_name?.charAt(0) ||
+                              auth.user?.email?.charAt(0) ||
                               "U"}
                           </span>
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900 truncate">
-                          {user?.first_name && user?.last_name
-                            ? `${user.first_name} ${user.last_name}`
-                            : user?.first_name || user?.last_name || "User"}
+                          {auth.user?.first_name && auth.user?.last_name
+                            ? `${auth.user.first_name} ${auth.user.last_name}`
+                            : auth.user?.first_name ||
+                              auth.user?.last_name ||
+                              "User"}
                         </p>
                         <p className="text-sm text-gray-500 truncate">
-                          {user?.email}
+                          {auth.user?.email}
                         </p>
                       </div>
                     </div>
@@ -367,10 +370,10 @@ const MyNavbar = () => {
 
                   <button
                     onClick={handleLogout}
-                    disabled={loading}
+                    disabled={auth.loading}
                     className="flex items-center justify-center w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
                   >
-                    {loading ? (
+                    {auth.loading ? (
                       <>
                         <svg
                           className="animate-spin -ml-1 mr-2 h-4 w-4 text-red-600"

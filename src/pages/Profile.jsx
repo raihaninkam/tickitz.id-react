@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router";
 // import NavbarDashboard from "../components/NavbarDashboard";
 import ProfileSidebar from "../components/ProfileSidebar";
@@ -10,17 +10,36 @@ import MyNavbar from "../components/Navbar";
 const ProfilePage = () => {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [formData, setFormData] = useState({});
-  const [profileImage, setProfileImage] = useState(null); // New state for profile image
+  const [profileImage, setProfileImage] = useState(null);
 
   const userEmail = useSelector((state) => state.auth?.user?.email);
   const token = useSelector((state) => state.auth?.token);
-
   const { user } = useSelector((state) => state.auth);
 
-  const firstName = user.first_name;
-  const lastName = user.last_name;
-  const phoneNumber = user.phone_number;
+  const firstName = user?.first_name || "";
+  const lastName = user?.last_name || "";
+  const phoneNumber = user?.phone_number || "";
+
+  // Initialize formData with values from Redux
+  const [formData, setFormData] = useState({
+    firstName: firstName,
+    lastName: lastName,
+    phoneNumber: phoneNumber,
+    newPassword: "",
+    confirmPassword: "",
+  });
+
+  // Update formData when user data changes
+  useEffect(() => {
+    setFormData((prev) => ({
+      ...prev,
+      firstName: firstName,
+      lastName: lastName,
+      phoneNumber: phoneNumber,
+    }));
+  }, [firstName, lastName, phoneNumber]);
+
+  console.log(firstName, lastName, phoneNumber);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -44,17 +63,29 @@ const ProfilePage = () => {
     console.log("Image file received:", imageFile);
   };
 
-  // Image upload is now handled in the main form submission
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     console.log("Form submitted:", formData);
+
+    // Validate password confirmation if password is being changed
+    if (
+      formData.newPassword &&
+      formData.newPassword !== formData.confirmPassword
+    ) {
+      toast.error("Passwords do not match");
+      return;
+    }
 
     // Create FormData to handle both text and file data
     const formDataPayload = new FormData();
     formDataPayload.append("first_name", formData.firstName || "");
     formDataPayload.append("last_name", formData.lastName || "");
     formDataPayload.append("phone_number", formData.phoneNumber || "");
+
+    // Add password if provided
+    if (formData.newPassword) {
+      formDataPayload.append("password", formData.newPassword);
+    }
 
     // Add profile image if exists
     if (profileImage) {
@@ -75,6 +106,12 @@ const ProfilePage = () => {
         console.log("Profile updated");
         // Reset profile image state after successful upload
         setProfileImage(null);
+        // Clear password fields after successful update
+        setFormData((prev) => ({
+          ...prev,
+          newPassword: "",
+          confirmPassword: "",
+        }));
       } else {
         toast.error(data.error || "Update failed");
       }
@@ -130,7 +167,7 @@ const ProfilePage = () => {
                       type="text"
                       name="firstName"
                       className="px-4 py-3 border border-slate-200 rounded-lg text-sm bg-slate-50 transition-all focus:outline-none focus:border-blue-700 focus:bg-white"
-                      value={firstName || ""}
+                      value={formData.firstName || ""}
                       onChange={handleInputChange}
                     />
                   </div>
@@ -142,7 +179,7 @@ const ProfilePage = () => {
                       type="text"
                       name="lastName"
                       className="px-4 py-3 border border-slate-200 rounded-lg text-sm bg-slate-50 transition-all focus:outline-none focus:border-blue-700 focus:bg-white"
-                      value={lastName || ""}
+                      value={formData.lastName || ""}
                       onChange={handleInputChange}
                     />
                   </div>
@@ -155,9 +192,8 @@ const ProfilePage = () => {
                       name="email"
                       disabled={true}
                       readOnly={true}
-                      className="px-4 py-3 border border-slate-200 rounded-lg text-sm bg-slate-50 transition-all focus:outline-none focus:border-blue-700 focus:bg-white"
+                      className="px-4 py-3 border border-slate-200 rounded-lg text-sm bg-slate-50 transition-all focus:outline-none focus:border-blue-700 focus:bg-white cursor-not-allowed"
                       value={userEmail || ""}
-                      onChange={handleInputChange}
                     />
                   </div>
                   <div className="flex flex-col">
@@ -168,7 +204,7 @@ const ProfilePage = () => {
                       type="text"
                       name="phoneNumber"
                       className="px-4 py-3 border border-slate-200 rounded-lg text-sm bg-slate-50 transition-all focus:outline-none focus:border-blue-700 focus:bg-white"
-                      value={phoneNumber || ""}
+                      value={formData.phoneNumber || ""}
                       onChange={handleInputChange}
                     />
                   </div>
@@ -183,6 +219,17 @@ const ProfilePage = () => {
 
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="flex flex-col">
+                    <label className="text-sm text-slate-500 mb-2">Email</label>
+                    <div className="relative">
+                      <input
+                        type="email"
+                        name="email"
+                        className="px-4 py-3 pr-12 border border-slate-200 rounded-lg text-sm bg-slate-50 transition-all focus:outline-none focus:border-blue-700 focus:bg-white w-full placeholder-slate-400"
+                        placeholder="Write your email"
+                        onChange={handleInputChange}
+                      />
+                    </div>
+
                     <label className="text-sm text-slate-500 mb-2">
                       New Password
                     </label>
@@ -191,7 +238,7 @@ const ProfilePage = () => {
                         type={showNewPassword ? "text" : "password"}
                         name="newPassword"
                         className="px-4 py-3 pr-12 border border-slate-200 rounded-lg text-sm bg-slate-50 transition-all focus:outline-none focus:border-blue-700 focus:bg-white w-full placeholder-slate-400"
-                        placeholder="Write your password"
+                        placeholder="Write your new password"
                         value={formData.newPassword || ""}
                         onChange={handleInputChange}
                       />

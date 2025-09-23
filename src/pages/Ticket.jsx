@@ -38,31 +38,31 @@ const TicketResult = () => {
   const handleDownloadPDF = () => {
     // Create a new window for printing/PDF generation
     const printWindow = window.open("", "_blank");
-    printWindow.document.write(
+    printWindow.document.writeln(
       "<html><head><title>Ticket</title></head><body>"
     );
-    printWindow.document.write(
+    printWindow.document.writeln(
       `<h1>Ticket for ${currentTicketData.ticketInfo.movieTitle}</h1>`
     );
-    printWindow.document.write(
+    printWindow.document.writeln(
       `<p>Category: ${currentTicketData.ticketInfo.category}</p>`
     );
-    printWindow.document.write(
+    printWindow.document.writeln(
       `<p>Date: ${currentTicketData.ticketInfo.date}</p>`
     );
-    printWindow.document.write(
+    printWindow.document.writeln(
       `<p>Time: ${currentTicketData.ticketInfo.time}</p>`
     );
-    printWindow.document.write(
+    printWindow.document.writeln(
       `<p>Count: ${currentTicketData.ticketInfo.count} pcs</p>`
     );
-    printWindow.document.write(
+    printWindow.document.writeln(
       `<p>Seats: ${currentTicketData.ticketInfo.seats}</p>`
     );
-    printWindow.document.write(
+    printWindow.document.writeln(
       `<p>Total: ${currentTicketData.ticketInfo.total}</p>`
     );
-    printWindow.document.write("</body></html>");
+    printWindow.document.writeln("</body></html>");
     printWindow.document.close();
     setTimeout(() => {
       printWindow.print();

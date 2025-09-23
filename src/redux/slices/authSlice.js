@@ -5,6 +5,7 @@ const initialState = {
   user: null,
   loading: false,
   error: null,
+  role: null,
 };
 
 // Async thunk untuk fetch user profile
@@ -50,6 +51,7 @@ const authSlice = createSlice({
     setCredentials: (state, action) => {
       state.token = action.payload.token;
       state.user = action.payload.user;
+      state.role = action.payload.role;
       state.error = null;
     },
     logout: (state) => {
