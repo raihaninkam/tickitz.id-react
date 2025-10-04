@@ -4,7 +4,6 @@ import MyNavbar from "../components/Navbar";
 import MyFooter from "../components/Footer";
 import { useNavigate } from "react-router";
 import { useSelector } from "react-redux";
-// import { addOrderHistory, clearCurrentOrder } from "../redux/slices/orderSlice";
 import convertTime, { convertDate } from "../utils/timeConvert";
 import toast from "react-hot-toast";
 
@@ -22,29 +21,12 @@ const PaymentPage = () => {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const navigate = useNavigate();
-  // const dispatch = useDispatch();
 
-  // Get current user
-  const currentUser = useSelector((state) => {
-    try {
-      return state.auth?.currentUser || state.user?.currentUser || null;
-    } catch (error) {
-      console.error("Error accessing user state:", error);
-      return null;
-    }
-  });
-
-  const getCurrentUserFromStorage = () => {
-    try {
-      const storedUser = localStorage.getItem("token");
-      if (storedUser) {
-        return JSON.parse(storedUser);
-      }
-    } catch (error) {
-      console.error("Error parsing user from localStorage:", error);
-    }
-    return null;
-  };
+  const token = useSelector((state) => state.auth.token);
+  const fName = useSelector((state) => state.auth.user?.first_name);
+  const lName = useSelector((state) => state.auth.user?.last_name);
+  const email = useSelector((state) => state.auth.user?.email);
+  const phoneNumber = useSelector((state) => state.auth.user?.phone_number);
 
   // Get order data from Redux
   const orderData = useSelector((state) => {
@@ -56,18 +38,16 @@ const PaymentPage = () => {
     }
   });
 
-  // Set user data in form
+  // CARA 1: Sinkronkan formData dengan Redux state
   useEffect(() => {
-    const user = currentUser || getCurrentUserFromStorage();
-    if (user) {
-      setFormData((prev) => ({
-        ...prev,
-        email: user.email || "",
-        fullName: user.name || user.fullName || "",
-        phoneNumber: user.phone || user.phoneNumber || "",
-      }));
+    if (fName || lName || email || phoneNumber) {
+      setFormData({
+        fullName: `${fName || ""} ${lName || ""}`.trim(),
+        email: email || "",
+        phoneNumber: phoneNumber || "",
+      });
     }
-  }, [currentUser]);
+  }, [fName, lName, email, phoneNumber]);
 
   // Check if order data exists
   useEffect(() => {
@@ -110,7 +90,6 @@ const PaymentPage = () => {
     { id: "ovo", img: "/ovo.svg", name: "OVO" },
   ];
 
-  // Mapping payment methods to backend IDs
   const getPaymentMethodId = (method) => {
     const paymentMap = {
       "google-pay": 1,
@@ -168,7 +147,7 @@ const PaymentPage = () => {
   const validateForm = () => {
     const errors = {};
     Object.keys(formData).forEach((key) => {
-      if (!formData[key].trim()) {
+      if (!formData[key] || !formData[key].trim()) {
         errors[key] = true;
       }
     });
@@ -180,7 +159,7 @@ const PaymentPage = () => {
     e.preventDefault();
 
     if (!selectedPaymentMethod) {
-      alert("Please select a payment method");
+      toast.error("Please select a payment method");
       return;
     }
 
@@ -218,7 +197,6 @@ const PaymentPage = () => {
     }
   };
 
-  // Handle escape key
   useEffect(() => {
     const handleEscape = (e) => {
       if (e.key === "Escape" && showModal) {
@@ -239,18 +217,8 @@ const PaymentPage = () => {
     };
   }, [showModal]);
 
-  const token = useSelector((state) => state.auth.token);
-
-  const fName = useSelector((state) => state.auth.user.first_name);
-  const lName = useSelector((state) => state.auth.user.last_name);
-  const email = useSelector((state) => state.auth.user.email);
-  const phoneNumber = useSelector((state) => state.auth.user.phone_number);
-
-  // API call to create order
   const createOrderAPI = async (orderPayload) => {
     try {
-      // Get token from localStorage
-
       if (!token) {
         throw new Error("Authentication token not found");
       }
@@ -277,7 +245,6 @@ const PaymentPage = () => {
     }
   };
 
-  // Handle modal payment - now with backend integration
   const handleModalPayment = async (status) => {
     if (isProcessing) return;
     setIsProcessing(true);
@@ -300,20 +267,11 @@ const PaymentPage = () => {
         console.log("Form Data:", formData);
         console.log("Selected Payment Method:", selectedPaymentMethod);
         console.log("Final Payload:", JSON.stringify(orderPayload, null, 2));
-        console.log("Payload Types:", {
-          price: typeof orderPayload.price,
-          payment_id: typeof orderPayload.payment_id,
-          now_showing_id: typeof orderPayload.now_showing_id,
-          cinema_id: typeof orderPayload.cinema_id,
-          seats_map: Array.isArray(orderPayload.seats_map),
-          seats_length: orderPayload.seats_map?.length,
-        });
 
         const apiResponse = await createOrderAPI(orderPayload);
         console.log("API Response:", apiResponse);
 
         toast.success("Order berhasil dibuat!");
-
         navigate("/home/ticket", { replace: true });
         closeModal();
       }
@@ -321,14 +279,12 @@ const PaymentPage = () => {
       console.error("=== ERROR DEBUG ===");
       console.error("Error:", error);
       console.error("Error message:", error.message);
-      alert(`Payment failed: ${error.message}`);
+      toast.error(`Payment failed: ${error.message}`);
     } finally {
       setIsProcessing(false);
-      toast.success("Order berhasil dibuat!");
     }
   };
 
-  // Show loading state
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 font-sans">
@@ -341,24 +297,20 @@ const PaymentPage = () => {
     );
   }
 
-  // Main render
   return (
     <div className="min-h-screen bg-gray-100 font-sans">
       <MyNavbar />
 
-      {/* Progress Bar */}
       <div className="flex justify-center py-8">
         <div className="flex items-center space-x-4">
           <img src="/progress2.svg" alt="Progress" />
         </div>
       </div>
 
-      {/* Main Content */}
       <main className="max-w-4xl mx-auto px-4 lg:px-8 pb-8">
         <div className="bg-white rounded-lg shadow-sm p-6 lg:p-8">
           <h1 className="text-2xl font-bold mb-8">Payment Info</h1>
 
-          {/* Booking Details */}
           <div className="space-y-4 mb-8">
             <div>
               <p className="text-sm text-gray-500 uppercase tracking-wide mb-1">
@@ -426,7 +378,6 @@ const PaymentPage = () => {
             </div>
           </div>
 
-          {/* Personal Information */}
           <div className="mb-8">
             <h2 className="text-xl font-bold mb-6">Personal Information</h2>
             <div className="space-y-4">
@@ -437,7 +388,7 @@ const PaymentPage = () => {
                 <input
                   type="text"
                   name="fullName"
-                  value={`${fName}${lName}`}
+                  value={formData.fullName}
                   onChange={handleInputChange}
                   placeholder="Enter your full name"
                   className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent ${
@@ -453,7 +404,7 @@ const PaymentPage = () => {
                 <input
                   type="email"
                   name="email"
-                  value={email}
+                  value={formData.email}
                   onChange={handleInputChange}
                   placeholder="Enter your email"
                   className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent ${
@@ -473,7 +424,7 @@ const PaymentPage = () => {
                   <input
                     type="text"
                     name="phoneNumber"
-                    value={phoneNumber}
+                    value={formData.phoneNumber}
                     onChange={handleInputChange}
                     placeholder="81445687121"
                     className={`w-full pl-14 pr-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent ${
@@ -487,7 +438,6 @@ const PaymentPage = () => {
             </div>
           </div>
 
-          {/* Payment Methods */}
           <div className="mb-8">
             <h2 className="text-lg font-semibold mb-4">
               Choose Payment Method
@@ -525,7 +475,6 @@ const PaymentPage = () => {
             </div>
           </div>
 
-          {/* Pay Button */}
           <div className="flex justify-center">
             <button
               onClick={handlePayment}
@@ -537,7 +486,6 @@ const PaymentPage = () => {
         </div>
       </main>
 
-      {/* Payment Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-4 relative shadow-lg">

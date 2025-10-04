@@ -1,16 +1,18 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router";
-// import NavbarDashboard from "../components/NavbarDashboard";
 import ProfileSidebar from "../components/ProfileSidebar";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
+import { updateUser } from "../redux/slices/authSlice";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import MyNavbar from "../components/Navbar";
 
 const ProfilePage = () => {
+  const dispatch = useDispatch();
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [profileImage, setProfileImage] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const userEmail = useSelector((state) => state.auth?.user?.email);
   const token = useSelector((state) => state.auth?.token);
@@ -38,8 +40,6 @@ const ProfilePage = () => {
       phoneNumber: phoneNumber,
     }));
   }, [firstName, lastName, phoneNumber]);
-
-  console.log(firstName, lastName, phoneNumber);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -76,6 +76,14 @@ const ProfilePage = () => {
       return;
     }
 
+    // Validate password length
+    if (formData.newPassword && formData.newPassword.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+
+    setIsSubmitting(true);
+
     // Create FormData to handle both text and file data
     const formDataPayload = new FormData();
     formDataPayload.append("first_name", formData.firstName || "");
@@ -100,12 +108,31 @@ const ProfilePage = () => {
         },
         body: formDataPayload,
       });
+
       const data = await response.json();
+
       if (response.ok) {
-        toast.success("Profile updated!");
-        console.log("Profile updated");
+        toast.success("Profile updated successfully!");
+        console.log("Profile updated:", data);
+
+        // Update Redux state dengan data terbaru
+        const updatedUserData = {
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          phone_number: formData.phoneNumber,
+        };
+
+        // Jika ada profile picture baru dari response
+        if (data.data?.profile_picture) {
+          updatedUserData.profile_picture = data.data.profile_picture;
+        }
+
+        // Dispatch update ke Redux
+        dispatch(updateUser(updatedUserData));
+
         // Reset profile image state after successful upload
         setProfileImage(null);
+
         // Clear password fields after successful update
         setFormData((prev) => ({
           ...prev,
@@ -117,7 +144,9 @@ const ProfilePage = () => {
       }
     } catch (err) {
       console.error("Update error:", err);
-      toast.error("Update failed");
+      toast.error("Failed to update profile. Please try again.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -169,6 +198,7 @@ const ProfilePage = () => {
                       className="px-4 py-3 border border-slate-200 rounded-lg text-sm bg-slate-50 transition-all focus:outline-none focus:border-blue-700 focus:bg-white"
                       value={formData.firstName || ""}
                       onChange={handleInputChange}
+                      disabled={isSubmitting}
                     />
                   </div>
                   <div className="flex flex-col">
@@ -181,6 +211,7 @@ const ProfilePage = () => {
                       className="px-4 py-3 border border-slate-200 rounded-lg text-sm bg-slate-50 transition-all focus:outline-none focus:border-blue-700 focus:bg-white"
                       value={formData.lastName || ""}
                       onChange={handleInputChange}
+                      disabled={isSubmitting}
                     />
                   </div>
                   <div className="flex flex-col">
@@ -206,6 +237,7 @@ const ProfilePage = () => {
                       className="px-4 py-3 border border-slate-200 rounded-lg text-sm bg-slate-50 transition-all focus:outline-none focus:border-blue-700 focus:bg-white"
                       value={formData.phoneNumber || ""}
                       onChange={handleInputChange}
+                      disabled={isSubmitting}
                     />
                   </div>
                 </div>
@@ -219,17 +251,6 @@ const ProfilePage = () => {
 
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="flex flex-col">
-                    <label className="text-sm text-slate-500 mb-2">Email</label>
-                    <div className="relative">
-                      <input
-                        type="email"
-                        name="email"
-                        className="px-4 py-3 pr-12 border border-slate-200 rounded-lg text-sm bg-slate-50 transition-all focus:outline-none focus:border-blue-700 focus:bg-white w-full placeholder-slate-400"
-                        placeholder="Write your email"
-                        onChange={handleInputChange}
-                      />
-                    </div>
-
                     <label className="text-sm text-slate-500 mb-2">
                       New Password
                     </label>
@@ -241,11 +262,13 @@ const ProfilePage = () => {
                         placeholder="Write your new password"
                         value={formData.newPassword || ""}
                         onChange={handleInputChange}
+                        disabled={isSubmitting}
                       />
                       <button
                         type="button"
                         className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 p-1 text-base hover:text-slate-500"
                         onClick={() => togglePasswordVisibility("new")}
+                        disabled={isSubmitting}
                       >
                         {showNewPassword ? "🙈" : "👁"}
                       </button>
@@ -263,24 +286,59 @@ const ProfilePage = () => {
                         placeholder="Confirm your password"
                         value={formData.confirmPassword || ""}
                         onChange={handleInputChange}
+                        disabled={isSubmitting}
                       />
                       <button
                         type="button"
                         className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 p-1 text-base hover:text-slate-500"
                         onClick={() => togglePasswordVisibility("confirm")}
+                        disabled={isSubmitting}
                       >
                         {showConfirmPassword ? "🙈" : "👁"}
                       </button>
                     </div>
                   </div>
                 </div>
+
+                {formData.newPassword && (
+                  <p className="text-xs text-slate-500 mt-2">
+                    Password must be at least 6 characters
+                  </p>
+                )}
               </div>
 
               <button
                 type="submit"
-                className="bg-blue-700 text-white px-12 py-3.5 rounded-lg text-sm font-semibold transition-all hover:bg-blue-800 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0"
+                disabled={isSubmitting}
+                className="bg-blue-700 text-white px-12 py-3.5 rounded-lg text-sm font-semibold transition-all hover:bg-blue-800 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none flex items-center"
               >
-                Update changes
+                {isSubmitting ? (
+                  <>
+                    <svg
+                      className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    Updating...
+                  </>
+                ) : (
+                  "Update changes"
+                )}
               </button>
             </form>
           </main>

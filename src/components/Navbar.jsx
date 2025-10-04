@@ -45,7 +45,7 @@ const MyNavbar = () => {
     if (token && (!user || !user.first_name)) {
       dispatch(fetchUserProfile());
     }
-  }, [dispatch]);
+  }, [dispatch, auth.token, auth.user?.profile_picture]);
 
   // tutup dropdown kalau klik di luar
   useEffect(() => {
