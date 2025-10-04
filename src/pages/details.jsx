@@ -292,8 +292,13 @@ const MovieDetailPage = ({ onBookingDataChange }) => {
     // If imagePath is already a full URL, return as is
     if (imagePath.startsWith("http")) return imagePath;
 
-    // Otherwise, prepend your backend base URL
-    return `${API_BASE_URL}/images/${imagePath}`;
+    // If path already starts with /images/, /public/, etc, just append to base URL
+    if (imagePath.startsWith("/")) {
+      return `${import.meta.env.VITE_BE_HOST}${imagePath}`;
+    }
+
+    // Otherwise, add /images/ prefix
+    return `${import.meta.env.VITE_BE_HOST}/images/${imagePath}`;
   };
 
   // Helper function to format duration
@@ -551,8 +556,14 @@ const MovieDetailPage = ({ onBookingDataChange }) => {
                 alt={movieData.title}
                 className="w-80 rounded-lg shadow-lg -mt-20 mx-auto"
                 onError={(e) => {
-                  e.target.src =
-                    "https://via.placeholder.com/500x750/e5e7eb/6b7280?text=No+Image";
+                  if (
+                    e.target.src !==
+                    "https://via.placeholder.com/500x750/e5e7eb/6b7280?text=No+Image"
+                  ) {
+                    e.target.onerror = null; // hentikan loop
+                    e.target.src =
+                      "https://via.placeholder.com/500x750/e5e7eb/6b7280?text=No+Image";
+                  }
                 }}
               />
             ) : (
