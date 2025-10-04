@@ -9,8 +9,8 @@ import convertTime, { convertDate } from "../utils/timeConvert";
 
 const OrderPage = () => {
   const [selectedSeats, setSelectedSeats] = useState([]);
-  const [seatData, setSeatData] = useState([]); // Data kursi dari backend
-  const [loading, setLoading] = useState(true); // Set ke true untuk initial loading
+  const [seatData, setSeatData] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -51,9 +51,10 @@ const OrderPage = () => {
   const movieData = bookingData
     ? {
         title: bookingData.movieTitle || bookingData.title,
-        poster_path: bookingData.moviePoster
-          ? `https://image.tmdb.org/t/p/w500${bookingData.moviePoster}`
-          : "/spiderman-sear.svg",
+        // Tambahkan base URL jika path tidak dimulai dengan http
+        poster_path: bookingData.moviePoster?.startsWith("http")
+          ? bookingData.moviePoster
+          : `${import.meta.env.VITE_BE_HOST}${bookingData.moviePoster}`,
         genres: bookingData.genres || fallbackMovieData.genres,
       }
     : fallbackMovieData;
@@ -344,7 +345,7 @@ const OrderPage = () => {
                       ))}
                     </div>
                     <p className="text-sm text-gray-700">
-                      Regular - (bookingDetails.time)
+                      Regular - {bookingDetails.time}
                     </p>
                   </div>
                 </div>
