@@ -16,54 +16,143 @@ import MovieForm from "./pages/MovieForm.jsx";
 import { useSelector } from "react-redux";
 
 function App() {
-  const PrivateRoute = ({ children }) => {
+  // Route Guard untuk user biasa (non-admin)
+  const UserRoute = ({ children }) => {
     const auth = useSelector((state) => state.auth);
-    if (!auth.token) return <Navigate to="/login" replace />;
-    if (auth.role !== "admin") return <Navigate to="/home" replace />;
+
+    // Tidak ada token -> redirect ke login
+    if (!auth.token) {
+      return <Navigate to="/login" replace />;
+    }
+
+    // Jika admin -> redirect ke dashboard admin
+    if (auth.role === "admin") {
+      return <Navigate to="/movieList" replace />;
+    }
+
+    // User biasa -> boleh akses
     return children;
   };
+
+  // Route Guard untuk admin only
+  const AdminRoute = ({ children }) => {
+    const auth = useSelector((state) => state.auth);
+
+    // Tidak ada token -> redirect ke login
+    if (!auth.token) {
+      return <Navigate to="/login" replace />;
+    }
+
+    // Bukan admin -> redirect ke home
+    if (auth.role !== "admin") {
+      return <Navigate to="/home" replace />;
+    }
+
+    // Admin -> boleh akses
+    return children;
+  };
+
+  // Route Guard umum (user dan admin bisa akses)
+  const PrivateRoute = ({ children }) => {
+    const auth = useSelector((state) => state.auth);
+
+    // Tidak ada token -> redirect ke login
+    if (!auth.token) {
+      return <Navigate to="/login" replace />;
+    }
+
+    // Ada token -> boleh akses
+    return children;
+  };
+
   return (
-    <>
-      <BrowserRouter>
-        <Routes>
-          {/* Auth routes */}
-          <Route path="/register" element={<Register />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/home" element={<Home />} />
-          <Route path="/forgotPassword" element={<ForgotPassword />} />
+    <BrowserRouter>
+      <Routes>
+        {/* Public Routes - Bisa diakses tanpa login */}
+        <Route path="/register" element={<Register />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/forgotPassword" element={<ForgotPassword />} />
+        <Route path="/" element={<Home />} />
+        <Route path="/home" element={<Home />} />
+        <Route path="/home/movies" element={<MovieApp />} />
+        <Route path="/home/movies/:id" element={<MovieDetailPage />} />
 
-          {/* Main app routes */}
-          <Route path="/" element={<Home />} />
-          <Route path="/home/movies" element={<MovieApp />} />
-          <Route path="/home/movies/:id" element={<MovieDetailPage />} />
-          <Route path="/home/payment" element={<PaymentPage />} />
-          <Route path="/home/order" element={<OrderPage />} />
-          <Route path="/home/ticket" element={<TicketResult />} />
+        {/* User-Only Routes - Hanya user biasa, admin tidak bisa */}
+        <Route
+          path="/home/payment"
+          element={
+            <UserRoute>
+              <PaymentPage />
+            </UserRoute>
+          }
+        />
+        <Route
+          path="/home/order"
+          element={
+            <UserRoute>
+              <OrderPage />
+            </UserRoute>
+          }
+        />
+        <Route
+          path="/home/ticket"
+          element={
+            <UserRoute>
+              <TicketResult />
+            </UserRoute>
+          }
+        />
+        <Route
+          path="/order-history"
+          element={
+            <UserRoute>
+              <OrderHistory />
+            </UserRoute>
+          }
+        />
 
-          {/* dashboard app routes */}
-          <Route path="/" element={<ProfilePage />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/order-history" element={<OrderHistory />} />
-          <Route
-            path="/movieList"
-            element={
-              <PrivateRoute>
-                <TickitzMovieCRUD />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/chart"
-            element={
-              <PrivateRoute>
-                <MovieSalesDashboard />
-              </PrivateRoute>
-            }
-          />
-          <Route path="/movieForm" element={<MovieForm />} />
-        </Routes>
-      </BrowserRouter>
-    </>
+        {/* Shared Private Routes - User dan admin bisa akses */}
+        <Route
+          path="/profile"
+          element={
+            <PrivateRoute>
+              <ProfilePage />
+            </PrivateRoute>
+          }
+        />
+
+        {/* Admin-Only Routes - Hanya admin, user biasa tidak bisa */}
+        <Route
+          path="/movieList"
+          element={
+            <AdminRoute>
+              <TickitzMovieCRUD />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/chart"
+          element={
+            <AdminRoute>
+              <MovieSalesDashboard />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/movieForm"
+          element={
+            <AdminRoute>
+              <MovieForm />
+            </AdminRoute>
+          }
+        />
+        <Route path="/movies/add" element={<MovieForm />} />
+        <Route
+          path="/movies/:movieId/edit"
+          element={<MovieForm isEdit={true} />}
+        />
+      </Routes>
+    </BrowserRouter>
   );
 }
 
