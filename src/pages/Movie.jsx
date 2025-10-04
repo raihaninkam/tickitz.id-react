@@ -134,7 +134,9 @@ const MovieApp = () => {
         params.append("genre", currentGenre);
       }
 
-      const response = await fetch(`${API_BASE_URL}/movies/filter?${params}`);
+      const response = await fetch(
+        `${import.meta.env.VITE_BE_HOST}/movies/filter?${params}`
+      );
       const data = await response.json();
       console.log(
         "count:",
@@ -252,10 +254,14 @@ const MovieApp = () => {
       if (!imagePath)
         return "https://via.placeholder.com/500x750/e5e7eb/6b7280?text=No+Image";
 
-      // If imagePath is already a full URL, return as is
       if (imagePath.startsWith("http")) return imagePath;
 
-      // Otherwise, prepend your backend base URL
+      // Jika path sudah ada /images/, langsung concat dengan base URL
+      if (imagePath.startsWith("/images/")) {
+        return `${API_BASE_URL}${imagePath}`;
+      }
+
+      // Jika tidak, tambahkan /images/
       return `${API_BASE_URL}/images/${imagePath}`;
     };
 
