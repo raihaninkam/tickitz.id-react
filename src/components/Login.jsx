@@ -70,7 +70,11 @@ const Login = () => {
 
           // Delay navigation untuk memberi waktu toast muncul
           setTimeout(() => {
-            navigate("/Home");
+            if (data.role === "admin") {
+              navigate("/movieList");
+            } else {
+              navigate("/home");
+            }
           }, 1500);
         } else {
           toast.error(data.error || "Email atau password salah");
