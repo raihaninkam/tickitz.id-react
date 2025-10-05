@@ -251,17 +251,18 @@ const MovieApp = () => {
 
     // Get full image URL - adjust based on your backend image serving
     const getImageUrl = (imagePath) => {
-      if (!imagePath)
-        return "https://via.placeholder.com/500x750/e5e7eb/6b7280?text=No+Image";
+      // Gunakan data URI atau gambar lokal sebagai fallback
+      const fallbackImage =
+        "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='500' height='750'%3E%3Crect width='500' height='750' fill='%23e5e7eb'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='Arial' font-size='24' fill='%236b7280'%3ENo Image%3C/text%3E%3C/svg%3E";
 
+      if (!imagePath) return fallbackImage;
       if (imagePath.startsWith("http")) return imagePath;
 
-      // Jika path sudah ada /images/, langsung concat dengan base URL
+      // Build URL
       if (imagePath.startsWith("/images/")) {
         return `${API_BASE_URL}${imagePath}`;
       }
 
-      // Jika tidak, tambahkan /images/
       return `${API_BASE_URL}/images/${imagePath}`;
     };
 
@@ -291,8 +292,9 @@ const MovieApp = () => {
             loading="lazy"
             onClick={handleMobileTap}
             onError={(e) => {
+              e.target.onerror = null; // Prevent infinite loop
               e.target.src =
-                "https://via.placeholder.com/500x750/e5e7eb/6b7280?text=No+Image";
+                "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Crect width='60' height='60' fill='%23e5e7eb'/%3E%3C/svg%3E";
             }}
           />
 
