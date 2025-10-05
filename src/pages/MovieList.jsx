@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import {
-  ChevronDown,
   Eye,
   Edit2,
   Trash2,
@@ -12,9 +11,10 @@ import {
   Clock,
   MapPin,
   Film,
+  Search,
 } from "lucide-react";
 import NavbarAdmin from "../components/NavbarAdmin";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useSelector } from "react-redux";
 
@@ -24,18 +24,38 @@ const MovieList = () => {
   const [viewingMovie, setViewingMovie] = useState(null);
   const [editingMovie, setEditingMovie] = useState(null);
   const [editForm, setEditForm] = useState({});
-  const [currentPage, setCurrentPage] = useState(1);
   const [editPosterFile, setEditPosterFile] = useState(null);
   const [editBgFile, setEditBgFile] = useState(null);
   const [editShowtimes, setEditShowtimes] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
 
-  const itemsPerPage = 5;
-  const totalPages = Math.ceil(movies.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const currentMovies = movies.slice(startIndex, startIndex + itemsPerPage);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { token } = useSelector((state) => state.auth);
 
-  const navigate = useNavigate();
+  // Get page and search from URL params
+  const currentPage = parseInt(searchParams.get("page") || "1");
+  const urlSearch = searchParams.get("search") || "";
+
+  useEffect(() => {
+    if (urlSearch) {
+      setSearchQuery(urlSearch);
+    }
+  }, [urlSearch]);
+
+  const itemsPerPage = 5;
+
+  // Filter movies based on search
+  const filteredMovies = movies.filter((movie) =>
+    movie.movieName.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const totalPages = Math.ceil(filteredMovies.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentMovies = filteredMovies.slice(
+    startIndex,
+    startIndex + itemsPerPage
+  );
 
   // Fetch all movies from backend
   const fetchMovies = async () => {
@@ -68,12 +88,12 @@ const MovieList = () => {
           movieName: movie.title,
           category: movie.genres || "N/A",
           releasedDate: movie.release_date
-            ? new Date(movie.release_date).toISOString().split("T")[0]
+            ? new Date(movie.release_date).toLocaleDateString("en-GB")
             : "",
           duration: movie.duration_minutes
             ? `${Math.floor(movie.duration_minutes / 60)} Hours ${
                 movie.duration_minutes % 60
-              } Minutes`
+              } Minute`
             : "N/A",
           directorName: movie.director_name || "N/A",
           cast: "N/A",
@@ -111,20 +131,37 @@ const MovieList = () => {
     navigate("/movieForm");
   };
 
+  const handleSearch = (value) => {
+    setSearchQuery(value);
+    const params = new URLSearchParams(searchParams);
+    if (value) {
+      params.set("search", value);
+    } else {
+      params.delete("search");
+    }
+    params.set("page", "1");
+    setSearchParams(params);
+  };
+
+  const handlePageChange = (page) => {
+    const params = new URLSearchParams(searchParams);
+    params.set("page", page.toString());
+    setSearchParams(params);
+  };
+
   const handleEdit = (movie) => {
     setEditingMovie(movie);
     setEditForm({
       title: movie.movieName,
       synopsis: movie.synopsis,
       duration_minutes: movie.durationMinutes,
-      release_date: movie.releasedDate,
+      release_date: movie.releasedDate.split("/").reverse().join("-"),
       directors_id: movie.directorsId || "",
       rating: movie.rating || "",
       genres_id: movie.genresId ? movie.genresId.join(",") : "",
       casts_id: movie.castsId ? movie.castsId.join(",") : "",
     });
 
-    // Set showtimes data
     if (movie.showtimes && movie.showtimes.length > 0) {
       setEditShowtimes(
         movie.showtimes.map((st) => ({
@@ -145,7 +182,6 @@ const MovieList = () => {
   };
 
   const handleSaveEdit = async () => {
-    // Validasi required fields
     if (
       !editForm.title?.trim() ||
       !editForm.synopsis?.trim() ||
@@ -156,7 +192,6 @@ const MovieList = () => {
       return;
     }
 
-    // Validasi showtimes
     const validShowtimes = editShowtimes.filter(
       (st) => st.date && st.time && st.location_id && st.cinema_id
     );
@@ -170,7 +205,6 @@ const MovieList = () => {
     try {
       const formDataToSend = new FormData();
 
-      // Append semua field yang diperlukan
       formDataToSend.append("title", editForm.title.trim());
       formDataToSend.append("synopsis", editForm.synopsis.trim());
       formDataToSend.append(
@@ -191,7 +225,6 @@ const MovieList = () => {
         formDataToSend.append("rating", editForm.rating.toString());
       }
 
-      // Gunakan genres_id dan casts_id dari editForm
       if (editForm.genres_id) {
         formDataToSend.append("genres_id", editForm.genres_id);
       }
@@ -200,7 +233,6 @@ const MovieList = () => {
         formDataToSend.append("casts_id", editForm.casts_id);
       }
 
-      // Append showtimes data sebagai arrays
       validShowtimes.forEach((showtime) => {
         formDataToSend.append("showtime_dates[]", showtime.date);
         formDataToSend.append("showtime_times[]", showtime.time);
@@ -208,7 +240,6 @@ const MovieList = () => {
         formDataToSend.append("showtime_cinema_ids[]", showtime.cinema_id);
       });
 
-      // Handle file uploads
       if (editPosterFile) {
         formDataToSend.append("poster_image", editPosterFile);
       }
@@ -275,7 +306,6 @@ const MovieList = () => {
     setEditBgFile(null);
   };
 
-  // Showtime handlers
   const handleAddShowtime = () => {
     setEditShowtimes((prev) => [
       ...prev,
@@ -323,10 +353,9 @@ const MovieList = () => {
           toast.success("Movie deleted successfully!");
           await fetchMovies();
 
-          // Adjust current page if necessary
           const newTotalPages = Math.ceil((movies.length - 1) / itemsPerPage);
           if (currentPage > newTotalPages && newTotalPages > 0) {
-            setCurrentPage(newTotalPages);
+            handlePageChange(newTotalPages);
           }
         } else {
           toast.error(data.error || "Failed to delete movie");
@@ -363,19 +392,6 @@ const MovieList = () => {
     setEditBgFile(file);
   };
 
-  // Pagination handlers
-  const handleNextPage = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1);
-    }
-  };
-
-  const handlePrevPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
-    }
-  };
-
   // Edit Modal Component
   const EditModal = () => {
     if (!editingMovie) return null;
@@ -383,7 +399,6 @@ const MovieList = () => {
     return (
       <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50 p-4">
         <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-          {/* Modal Header */}
           <div className="flex items-center justify-between p-6 border-b border-gray-200">
             <h3 className="text-lg font-semibold text-gray-900">Edit Movie</h3>
             <button
@@ -395,9 +410,7 @@ const MovieList = () => {
             </button>
           </div>
 
-          {/* Modal Body */}
           <div className="p-6 space-y-6">
-            {/* Basic Information */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -516,7 +529,6 @@ const MovieList = () => {
               </div>
             </div>
 
-            {/* File Uploads */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -537,11 +549,6 @@ const MovieList = () => {
                 {editPosterFile && (
                   <p className="mt-1 text-xs text-green-600">
                     ✓ {editPosterFile.name}
-                  </p>
-                )}
-                {editingMovie.thumbnail && !editPosterFile && (
-                  <p className="mt-1 text-xs text-gray-500">
-                    Current: {editingMovie.thumbnail.split("/").pop()}
                   </p>
                 )}
               </div>
@@ -570,7 +577,6 @@ const MovieList = () => {
               </div>
             </div>
 
-            {/* Synopsis */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Synopsis *
@@ -585,7 +591,6 @@ const MovieList = () => {
               />
             </div>
 
-            {/* Showtimes Section */}
             <div className="border-t pt-6">
               <div className="flex items-center justify-between mb-4">
                 <h4 className="text-lg font-medium text-gray-900">Showtimes</h4>
@@ -703,7 +708,6 @@ const MovieList = () => {
             </div>
           </div>
 
-          {/* Modal Footer */}
           <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200">
             <button
               onClick={handleCancelEdit}
@@ -726,7 +730,6 @@ const MovieList = () => {
     );
   };
 
-  // Loading overlay
   if (loading && movies.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -738,14 +741,12 @@ const MovieList = () => {
     );
   }
 
-  // Movie Details View
   if (viewingMovie) {
     return (
       <div className="min-h-screen bg-gray-50">
         <NavbarAdmin />
         <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="bg-white rounded-lg shadow">
-            {/* Header */}
             <div className="px-6 py-4 border-b border-gray-200">
               <div className="flex items-center space-x-4">
                 <button
@@ -761,11 +762,10 @@ const MovieList = () => {
               </div>
             </div>
 
-            {/* Movie Details */}
             <div className="p-6 space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
                 <img
-                  src={viewingMovie.thumbnail || "/spiderman-sear.svg"}
+                  src={viewingMovie.thumbnail}
                   alt="Movie thumbnail"
                   className="w-16 h-16 rounded object-cover border mx-auto sm:mx-0"
                 />
@@ -815,7 +815,6 @@ const MovieList = () => {
                 </div>
               </div>
 
-              {/* Showtimes in Details View */}
               {viewingMovie.showtimes && viewingMovie.showtimes.length > 0 && (
                 <div>
                   <span className="font-medium text-gray-700">Showtimes:</span>
@@ -852,102 +851,110 @@ const MovieList = () => {
     );
   }
 
-  // Main List View
   return (
     <div className="min-h-screen bg-gray-50">
       <NavbarAdmin />
-      <main className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-4 sm:py-8">
-        <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-            Movie List
-          </h1>
-          <p className="text-gray-600 mt-2">
-            Manage and view all movies in the system
-          </p>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">List Movie</h1>
         </div>
 
-        <div className="bg-white rounded-lg shadow">
-          <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
-              <div className="flex items-center space-x-4">
-                <button
-                  onClick={handleAddNew}
-                  className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Add New</span>
-                </button>
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  type="text"
+                  placeholder="Search movies..."
+                  value={searchQuery}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
               </div>
+              <button
+                onClick={handleAddNew}
+                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 whitespace-nowrap"
+              >
+                Add Movies
+              </button>
             </div>
           </div>
 
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Movie
+                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">
+                    No
                   </th>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">
+                    Thumbnail
+                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">
+                    Movie Name
+                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">
                     Category
                   </th>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Release Date
+                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">
+                    Released Date
                   </th>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">
                     Duration
                   </th>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
+                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">
+                    Action
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {currentMovies.map((movie) => (
+                {currentMovies.map((movie, index) => (
                   <tr key={movie.id} className="hover:bg-gray-50">
-                    <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <img
-                          src={movie.thumbnail || "/spiderman-sear.svg"}
-                          alt="Movie thumbnail"
-                          className="w-10 h-10 rounded object-cover border"
-                        />
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">
-                            {movie.movieName}
-                          </div>
-                        </div>
-                      </div>
+                    <td className="px-6 py-4 text-sm text-gray-900">
+                      {startIndex + index + 1}
                     </td>
-                    <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4">
+                      <img
+                        src={movie.thumbnail}
+                        alt={movie.movieName}
+                        className="w-12 h-12 rounded object-cover"
+                      />
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-sm text-blue-600 hover:underline cursor-pointer">
+                        {movie.movieName}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-700">
                       {movie.category}
                     </td>
-                    <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 text-sm text-gray-700">
                       {movie.releasedDate}
                     </td>
-                    <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 text-sm text-gray-700">
                       {movie.duration}
                     </td>
-                    <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex items-center space-x-2">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleView(movie)}
-                          className="text-blue-600 hover:text-blue-900 p-1"
-                          title="View Details"
+                          className="bg-blue-600 text-white p-2 rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          title="View"
                         >
                           <Eye className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleEdit(movie)}
-                          className="text-green-600 hover:text-green-900 p-1"
-                          title="Edit Movie"
+                          className="bg-purple-600 text-white p-2 rounded hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                          title="Edit"
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(movie.id)}
-                          className="text-red-600 hover:text-red-900 p-1"
-                          title="Delete Movie"
+                          className="bg-red-600 text-white p-2 rounded hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+                          title="Delete"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -959,47 +966,36 @@ const MovieList = () => {
             </table>
           </div>
 
-          {/* Pagination */}
-          {movies.length > 0 && (
-            <div className="px-4 sm:px-6 py-4 border-t border-gray-200">
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-gray-700">
-                  Showing {startIndex + 1} to{" "}
-                  {Math.min(startIndex + itemsPerPage, movies.length)} of{" "}
-                  {movies.length} results
-                </div>
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={handlePrevPage}
-                    disabled={currentPage === 1}
-                    className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Previous
-                  </button>
-                  <span className="text-sm text-gray-700">
-                    Page {currentPage} of {totalPages}
-                  </span>
-                  <button
-                    onClick={handleNextPage}
-                    disabled={currentPage === totalPages}
-                    className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
+          {filteredMovies.length === 0 && !loading && (
+            <div className="text-center py-12">
+              <p className="text-gray-500">No movies found.</p>
             </div>
           )}
 
-          {movies.length === 0 && !loading && (
-            <div className="text-center py-8">
-              <p className="text-gray-500">No movies found.</p>
+          {filteredMovies.length > 0 && (
+            <div className="px-6 py-4 border-t border-gray-200">
+              <div className="flex items-center justify-center gap-2">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                  (page) => (
+                    <button
+                      key={page}
+                      onClick={() => handlePageChange(page)}
+                      className={`w-10 h-10 rounded-lg font-medium transition-colors ${
+                        currentPage === page
+                          ? "bg-blue-600 text-white"
+                          : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-300"
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  )
+                )}
+              </div>
             </div>
           )}
         </div>
       </main>
 
-      {/* Edit Modal */}
       <EditModal />
     </div>
   );
