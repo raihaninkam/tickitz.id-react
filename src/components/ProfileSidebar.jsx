@@ -1,20 +1,18 @@
 import { MoreHorizontal, Star, Camera } from "lucide-react";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useSelector } from "react-redux";
 import { toast } from "react-toastify";
 
 const ProfileSidebar = ({ onImageUpload }) => {
   const [isHovered, setIsHovered] = useState(false);
-  const [profileImage, setProfileImage] = useState(
-    "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=80&h=80&fit=crop&crop=face"
-  );
+  const [previewImage, setPreviewImage] = useState(null);
   const fileInputRef = useRef(null);
 
   const { user } = useSelector((state) => state.auth);
 
-  const firstName = user.first_name;
-  const lastName = user.last_name;
-  const poin = user.poin;
+  const firstName = user?.first_name;
+  const lastName = user?.last_name;
+  const poin = user?.poin;
 
   const handleImageClick = () => {
     fileInputRef.current?.click();
@@ -38,13 +36,38 @@ const ProfileSidebar = ({ onImageUpload }) => {
 
       // Create preview URL
       const imageUrl = URL.createObjectURL(file);
-      setProfileImage(imageUrl);
+      setPreviewImage(imageUrl);
 
       // Call parent component's callback with the file
       if (onImageUpload) {
         onImageUpload(file);
       }
     }
+  };
+
+  // Clean up preview URL when component unmounts
+  useEffect(() => {
+    return () => {
+      if (previewImage) {
+        URL.revokeObjectURL(previewImage);
+      }
+    };
+  }, [previewImage]);
+
+  // Reset preview when profile picture updates from server
+  useEffect(() => {
+    if (user?.profile_picture && previewImage) {
+      setPreviewImage(null);
+    }
+  }, [user?.profile_picture]);
+
+  // Determine which image to display
+  const getDisplayImage = () => {
+    if (previewImage) return previewImage;
+    if (user?.profile_picture) {
+      return `${import.meta.env.VITE_BE_HOST}/public/${user.profile_picture}`;
+    }
+    return "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=80&h=80&fit=crop&crop=face";
   };
 
   return (
@@ -68,21 +91,11 @@ const ProfileSidebar = ({ onImageUpload }) => {
             onMouseLeave={() => setIsHovered(false)}
             onClick={handleImageClick}
           >
-            {user?.profile_picture ? (
-              <img
-                src={`${import.meta.env.VITE_BE_HOST}/public/${
-                  user.profile_picture
-                }`}
-                alt="User Avatar"
-                className="w-full h-full object-cover transition-all duration-300 group-hover:brightness-75"
-              />
-            ) : (
-              <img
-                src={profileImage}
-                alt="Profile"
-                className="w-full h-full object-cover transition-all duration-300 group-hover:brightness-75"
-              />
-            )}
+            <img
+              src={getDisplayImage()}
+              alt="Profile"
+              className="w-full h-full object-cover transition-all duration-300 group-hover:brightness-75"
+            />
 
             {/* Overlay with upload icon */}
             <div
