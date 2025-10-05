@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { Link, useNavigate } from "react-router";
 import { fetchUserProfile } from "../redux/slices/authSlice";
 import { clearCredentials, logoutUser } from "../hooks/useAuth";
+import toast, { Toaster } from "react-hot-toast";
 
 const MyNavbar = () => {
   const dispatch = useDispatch();
@@ -29,6 +30,41 @@ const MyNavbar = () => {
       dispatch(clearCredentials());
       navigate("/login");
     }
+  };
+
+  // ✅ Tambahan: modal konfirmasi logout via toast
+  const confirmLogoutToast = () => {
+    toast.custom(
+      (t) => (
+        <div
+          className={`${
+            t.visible ? "animate-enter" : "animate-leave"
+          } bg-white shadow-lg border border-gray-200 rounded-lg p-4 w-80`}
+        >
+          <p className="text-gray-800 font-medium mb-3">
+            Are you sure you want to logout?
+          </p>
+          <div className="flex justify-end space-x-3">
+            <button
+              onClick={() => {
+                toast.dismiss(t.id);
+                handleLogout();
+              }}
+              className="px-4 py-1 bg-red-600 text-white rounded-md hover:bg-red-700 transition"
+            >
+              Confirm
+            </button>
+            <button
+              onClick={() => toast.dismiss(t.id)}
+              className="px-4 py-1 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-100 transition"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ),
+      { duration: 4000, position: "top-center" }
+    );
   };
 
   const toggleUserMenu = () => {
@@ -199,7 +235,7 @@ const MyNavbar = () => {
                   )}
 
                   <button
-                    onClick={handleLogout}
+                    onClick={confirmLogoutToast} // ✅ ubah ke toast konfirmasi
                     disabled={auth.loading}
                     className="flex items-center justify-center w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
                   >
@@ -222,7 +258,10 @@ const MyNavbar = () => {
                           <path
                             className="opacity-75"
                             fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 
+                            0 5.373 0 12h4zm2 5.291A7.962 
+                            7.962 0 014 12H0c0 3.042 1.135 
+                            5.824 3 7.938l3-2.647z"
                           ></path>
                         </svg>
                         Logging out...
@@ -369,7 +408,7 @@ const MyNavbar = () => {
                   )}
 
                   <button
-                    onClick={handleLogout}
+                    onClick={confirmLogoutToast} // ✅ toast konfirmasi
                     disabled={auth.loading}
                     className="flex items-center justify-center w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
                   >
@@ -392,7 +431,10 @@ const MyNavbar = () => {
                           <path
                             className="opacity-75"
                             fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 
+                            0 5.373 0 12h4zm2 5.291A7.962 
+                            7.962 0 014 12H0c0 3.042 1.135 
+                            5.824 3 7.938l3-2.647z"
                           ></path>
                         </svg>
                         Logging out...
@@ -407,6 +449,8 @@ const MyNavbar = () => {
           )}
         </div>
       </nav>
+
+      <Toaster />
     </header>
   );
 };
