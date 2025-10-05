@@ -1,6 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
-  ChevronDown,
   Eye,
   Edit2,
   Trash2,
@@ -15,8 +14,9 @@ import {
 } from "lucide-react";
 import NavbarAdmin from "../components/NavbarAdmin";
 import { useNavigate } from "react-router";
-import { toast } from "react-toastify";
+import { toast, ToastContainer } from "react-toastify";
 import { useSelector } from "react-redux";
+import "react-toastify/dist/ReactToastify.css";
 
 const MovieList = () => {
   const [movies, setMovies] = useState([]);
@@ -28,17 +28,18 @@ const MovieList = () => {
   const [editPosterFile, setEditPosterFile] = useState(null);
   const [editBgFile, setEditBgFile] = useState(null);
   const [editShowtimes, setEditShowtimes] = useState([]);
+  const [deleteModal, setDeleteModal] = useState({ open: false, movie: null });
 
   const itemsPerPage = 5;
-  const totalPages = Math.ceil(movies.length / itemsPerPage);
+  const totalPages = Math.max(1, Math.ceil(movies.length / itemsPerPage));
   const startIndex = (currentPage - 1) * itemsPerPage;
   const currentMovies = movies.slice(startIndex, startIndex + itemsPerPage);
   const { token } = useSelector((state) => state.auth);
 
   const navigate = useNavigate();
 
-  // Fetch all movies from backend
-  const fetchMovies = async () => {
+  // Fetch all movies from backend (useCallback to satisfy eslint deps)
+  const fetchMovies = useCallback(async () => {
     setLoading(true);
     try {
       const response = await fetch(
@@ -68,12 +69,12 @@ const MovieList = () => {
           movieName: movie.title,
           category: movie.genres || "N/A",
           releasedDate: movie.release_date
-            ? new Date(movie.release_date).toISOString().split("T")[0]
+            ? new Date(movie.release_date).toLocaleDateString("en-GB")
             : "",
           duration: movie.duration_minutes
             ? `${Math.floor(movie.duration_minutes / 60)} Hours ${
                 movie.duration_minutes % 60
-              } Minutes`
+              } Minute`
             : "N/A",
           directorName: movie.director_name || "N/A",
           cast: "N/A",
@@ -91,6 +92,14 @@ const MovieList = () => {
         }));
 
         setMovies(transformedMovies);
+        // adjust page if current page out of range after fetch
+        const newTotalPages = Math.max(
+          1,
+          Math.ceil(transformedMovies.length / itemsPerPage)
+        );
+        if (currentPage > newTotalPages) {
+          setCurrentPage(newTotalPages);
+        }
       } else {
         toast.error(data.error || "Failed to fetch movies");
       }
@@ -100,17 +109,18 @@ const MovieList = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token, currentPage]);
 
   // Load movies on component mount
   useEffect(() => {
     fetchMovies();
-  }, []);
+  }, [fetchMovies]);
 
   const handleAddNew = () => {
     navigate("/movieForm");
   };
 
+  // Open edit modal and populate form
   const handleEdit = (movie) => {
     setEditingMovie(movie);
     setEditForm({
@@ -124,7 +134,6 @@ const MovieList = () => {
       casts_id: movie.castsId ? movie.castsId.join(",") : "",
     });
 
-    // Set showtimes data
     if (movie.showtimes && movie.showtimes.length > 0) {
       setEditShowtimes(
         movie.showtimes.map((st) => ({
@@ -191,7 +200,6 @@ const MovieList = () => {
         formDataToSend.append("rating", editForm.rating.toString());
       }
 
-      // Gunakan genres_id dan casts_id dari editForm
       if (editForm.genres_id) {
         formDataToSend.append("genres_id", editForm.genres_id);
       }
@@ -216,13 +224,6 @@ const MovieList = () => {
         formDataToSend.append("bg_path", editBgFile);
       }
 
-      console.log("Movie ID:", editingMovie.id);
-      console.log("Showtimes:", validShowtimes);
-
-      for (let [key, value] of formDataToSend.entries()) {
-        console.log(`${key}:`, value);
-      }
-
       const response = await fetch(
         `${import.meta.env.VITE_BE_HOST}/admin/movies/${editingMovie.id}`,
         {
@@ -235,8 +236,6 @@ const MovieList = () => {
       );
 
       const responseText = await response.text();
-      console.log("Raw response:", responseText);
-
       let data;
       try {
         data = JSON.parse(responseText);
@@ -297,93 +296,86 @@ const MovieList = () => {
     );
   };
 
-  const handleDelete = async (id) => {
-    const movieToDelete = movies.find((movie) => movie.id === id);
-    if (
-      window.confirm(
-        `Are you sure you want to delete "${movieToDelete?.movieName}"?`
-      )
-    ) {
-      setLoading(true);
-      try {
-        const response = await fetch(
-          `${import.meta.env.VITE_BE_HOST}/admin/movies/delete/${id}`,
-          {
-            method: "DELETE",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
+  // Delete flow: open modal -> confirm
+  const openDeleteModal = (movie) => {
+    setDeleteModal({ open: true, movie });
+  };
 
-        const data = await response.json();
+  const closeDeleteModal = () => {
+    setDeleteModal({ open: false, movie: null });
+  };
 
-        if (response.ok && data.success) {
-          toast.success("Movie deleted successfully!");
-          await fetchMovies();
+  const handleDeleteConfirmed = async () => {
+    const id = deleteModal.movie?.id;
+    if (!id) {
+      closeDeleteModal();
+      return;
+    }
 
-          // Adjust current page if necessary
-          const newTotalPages = Math.ceil((movies.length - 1) / itemsPerPage);
-          if (currentPage > newTotalPages && newTotalPages > 0) {
-            setCurrentPage(newTotalPages);
-          }
-        } else {
-          toast.error(data.error || "Failed to delete movie");
+    setLoading(true);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_BE_HOST}/admin/movies/delete/${id}`,
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
         }
-      } catch (error) {
-        console.error("Delete movie error:", error);
-        toast.error("Terjadi kesalahan server");
-      } finally {
-        setLoading(false);
+      );
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        toast.success("Movie deleted successfully!");
+        await fetchMovies();
+
+        // Adjust current page if necessary
+        const newTotalPages = Math.max(
+          1,
+          Math.ceil((movies.length - 1) / itemsPerPage)
+        );
+        if (currentPage > newTotalPages) {
+          setCurrentPage(newTotalPages);
+        }
+        closeDeleteModal();
+      } else {
+        toast.error(data.error || "Failed to delete movie");
       }
+    } catch (error) {
+      console.error("Delete movie error:", error);
+      toast.error("Terjadi kesalahan server");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleView = (movie) => {
-    setViewingMovie(movie);
-  };
+  const handleView = (movie) => setViewingMovie(movie);
+  const handleBackToList = () => setViewingMovie(null);
 
-  const handleBackToList = () => {
-    setViewingMovie(null);
-  };
+  const handleFormChange = (field, value) =>
+    setEditForm((prev) => ({ ...prev, [field]: value }));
 
-  const handleFormChange = (field, value) => {
-    setEditForm((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-  };
-
-  const handlePosterFileChange = (file) => {
-    setEditPosterFile(file);
-  };
-
-  const handleBgFileChange = (file) => {
-    setEditBgFile(file);
-  };
+  const handlePosterFileChange = (file) => setEditPosterFile(file);
+  const handleBgFileChange = (file) => setEditBgFile(file);
 
   // Pagination handlers
   const handleNextPage = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1);
-    }
+    if (currentPage < totalPages) setCurrentPage((p) => p + 1);
   };
 
   const handlePrevPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
-    }
+    if (currentPage > 1) setCurrentPage((p) => p - 1);
   };
 
-  // Edit Modal Component
+  // Edit Modal Component (kept internal)
   const EditModal = () => {
     if (!editingMovie) return null;
 
     return (
       <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50 p-4">
         <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-          {/* Modal Header */}
           <div className="flex items-center justify-between p-6 border-b border-gray-200">
             <h3 className="text-lg font-semibold text-gray-900">Edit Movie</h3>
             <button
@@ -395,9 +387,7 @@ const MovieList = () => {
             </button>
           </div>
 
-          {/* Modal Body */}
           <div className="p-6 space-y-6">
-            {/* Basic Information */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -423,7 +413,7 @@ const MovieList = () => {
                   onChange={(e) =>
                     handleFormChange(
                       "duration_minutes",
-                      parseInt(e.target.value) || ""
+                      parseInt(e.target.value, 10) || ""
                     )
                   }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -457,7 +447,7 @@ const MovieList = () => {
                   onChange={(e) =>
                     handleFormChange(
                       "directors_id",
-                      parseInt(e.target.value) || ""
+                      parseInt(e.target.value, 10) || ""
                     )
                   }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -516,7 +506,6 @@ const MovieList = () => {
               </div>
             </div>
 
-            {/* File Uploads */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -527,9 +516,7 @@ const MovieList = () => {
                   accept="image/*"
                   onChange={(e) => {
                     const file = e.target.files[0];
-                    if (file) {
-                      handlePosterFileChange(file);
-                    }
+                    if (file) handlePosterFileChange(file);
                   }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                   disabled={loading}
@@ -555,9 +542,7 @@ const MovieList = () => {
                   accept="image/*"
                   onChange={(e) => {
                     const file = e.target.files[0];
-                    if (file) {
-                      handleBgFileChange(file);
-                    }
+                    if (file) handleBgFileChange(file);
                   }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                   disabled={loading}
@@ -570,7 +555,6 @@ const MovieList = () => {
               </div>
             </div>
 
-            {/* Synopsis */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Synopsis *
@@ -585,7 +569,6 @@ const MovieList = () => {
               />
             </div>
 
-            {/* Showtimes Section */}
             <div className="border-t pt-6">
               <div className="flex items-center justify-between mb-4">
                 <h4 className="text-lg font-medium text-gray-900">Showtimes</h4>
@@ -703,7 +686,6 @@ const MovieList = () => {
             </div>
           </div>
 
-          {/* Modal Footer */}
           <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200">
             <button
               onClick={handleCancelEdit}
@@ -745,7 +727,6 @@ const MovieList = () => {
         <NavbarAdmin />
         <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="bg-white rounded-lg shadow">
-            {/* Header */}
             <div className="px-6 py-4 border-b border-gray-200">
               <div className="flex items-center space-x-4">
                 <button
@@ -761,7 +742,6 @@ const MovieList = () => {
               </div>
             </div>
 
-            {/* Movie Details */}
             <div className="p-6 space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
                 <img
@@ -815,7 +795,6 @@ const MovieList = () => {
                 </div>
               </div>
 
-              {/* Showtimes in Details View */}
               {viewingMovie.showtimes && viewingMovie.showtimes.length > 0 && (
                 <div>
                   <span className="font-medium text-gray-700">Showtimes:</span>
@@ -854,7 +833,7 @@ const MovieList = () => {
 
   // Main List View
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#F7F8FC]">
       <NavbarAdmin />
       <main className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-4 sm:py-8">
         <div className="mb-6 sm:mb-8">
@@ -866,7 +845,7 @@ const MovieList = () => {
           </p>
         </div>
 
-        <div className="bg-white rounded-lg shadow">
+        <div className="bg-white rounded-2xl shadow p-6">
           <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
               <div className="flex items-center space-x-4">
@@ -886,7 +865,13 @@ const MovieList = () => {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Movie
+                    No
+                  </th>
+                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Thumbnail
+                  </th>
+                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Movie Name
                   </th>
                   <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Category
@@ -903,20 +888,21 @@ const MovieList = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {currentMovies.map((movie) => (
+                {currentMovies.map((movie, index) => (
                   <tr key={movie.id} className="hover:bg-gray-50">
                     <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <img
-                          src={movie.thumbnail || "/spiderman-sear.svg"}
-                          alt="Movie thumbnail"
-                          className="w-10 h-10 rounded object-cover border"
-                        />
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">
-                            {movie.movieName}
-                          </div>
-                        </div>
+                      {startIndex + index + 1}
+                    </td>
+                    <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                      <img
+                        src={movie.thumbnail}
+                        alt="Movie thumbnail"
+                        className="w-10 h-10 rounded object-cover border"
+                      />
+                    </td>
+                    <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-blue-600 hover:underline cursor-pointer">
+                        {movie.movieName}
                       </div>
                     </td>
                     <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -932,21 +918,21 @@ const MovieList = () => {
                       <div className="flex items-center space-x-2">
                         <button
                           onClick={() => handleView(movie)}
-                          className="text-blue-600 hover:text-blue-900 p-1"
+                          className="bg-[#4F46E5] hover:bg-[#4338CA] text-white p-2 rounded"
                           title="View Details"
                         >
                           <Eye className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleEdit(movie)}
-                          className="text-green-600 hover:text-green-900 p-1"
+                          className="bg-[#16A34A] hover:bg-[#15803D] text-white p-2 rounded"
                           title="Edit Movie"
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleDelete(movie.id)}
-                          className="text-red-600 hover:text-red-900 p-1"
+                          onClick={() => openDeleteModal(movie)}
+                          className="bg-[#EF4444] hover:bg-[#DC2626] text-white p-2 rounded"
                           title="Delete Movie"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -955,11 +941,20 @@ const MovieList = () => {
                     </td>
                   </tr>
                 ))}
+                {movies.length === 0 && !loading && (
+                  <tr>
+                    <td
+                      colSpan="7"
+                      className="text-center py-8 text-gray-500 italic"
+                    >
+                      No movies found.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
 
-          {/* Pagination */}
           {movies.length > 0 && (
             <div className="px-4 sm:px-6 py-4 border-t border-gray-200">
               <div className="flex items-center justify-between">
@@ -990,17 +985,47 @@ const MovieList = () => {
               </div>
             </div>
           )}
-
-          {movies.length === 0 && !loading && (
-            <div className="text-center py-8">
-              <p className="text-gray-500">No movies found.</p>
-            </div>
-          )}
         </div>
       </main>
 
       {/* Edit Modal */}
       <EditModal />
+
+      {/* Delete Confirmation Modal */}
+      {deleteModal.open && (
+        <div className="fixed inset-0 bg-black/40 flex justify-center items-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-sm p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Confirm Delete
+            </h3>
+            <p className="text-sm text-gray-600 mb-6">
+              Are you sure you want to delete{" "}
+              <span className="font-medium">
+                "{deleteModal.movie?.movieName}"
+              </span>
+              ?
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={closeDeleteModal}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteConfirmed}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                disabled={loading}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast container */}
+      <ToastContainer position="top-center" autoClose={3000} />
     </div>
   );
 };
